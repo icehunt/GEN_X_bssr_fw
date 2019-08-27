@@ -1,0 +1,403 @@
+#include "BSSR_CAN_H7.h"
+#include "stm32h7xx_hal.h"
+#include "cmsis_os.h"
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#define DEBUG_ON
+
+static FDCAN_FilterTypeDef filterConfig;
+static FDCAN_TxHeaderTypeDef txHeader;
+static FDCAN_RxHeaderTypeDef rxHeader;
+static FDCAN_TxEventFifoTypeDef txEvtHeader;
+static FDCAN_HandleTypeDef * fdcan;
+static UART_HandleTypeDef * uart;
+
+static QueueHandle_t xCanTxQueue = NULL;
+static QueueHandle_t xCanRxQueue = NULL;
+
+static volatile double fake_rand() {
+    static int seed = 1;
+    const static int a = 1627, b = 2549, m = 10000;
+    seed = (seed * a + b) % m;
+    return seed / m;
+}
+
+static void BSSR_CAN_Error(char *msg, FDCAN_HandleTypeDef * hfdcan) {
+    char buffer[128];
+    sprintf(buffer, "CAN TASK ERROR: %s\r\n", msg);
+    HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
+    if (hfdcan != NULL) {
+        sprintf(buffer, "\tERROR CODE: 0x%x\r\n", HAL_FDCAN_GetError(hfdcan));
+        HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
+    }
+#ifdef DEBUG_ON
+    for (;;);
+#endif
+}
+
+static inline void BSSR_CAN_Log(char *msg) {
+#ifdef DEBUG_ON
+    char buffer[128];
+    sprintf(buffer, "CAN TASK Message: %s\r\n", msg);
+    HAL_UART_Transmit(uart, buffer, strlen(buffer), 1000);
+#endif
+}
+
+static inline void BSSR_CAN_Status_Log(FDCAN_HandleTypeDef * hfdcan) {
+#ifdef DEBUG_ON
+    switch (HAL_FDCAN_GetState(hfdcan)) {
+        case HAL_FDCAN_STATE_RESET:
+            BSSR_CAN_Log("HAL_FDCAN_STATE_RESET");
+            break;
+        case HAL_FDCAN_STATE_READY:
+            BSSR_CAN_Log("HAL_FDCAN_STATE_READY");
+            break;  
+        case HAL_FDCAN_STATE_BUSY:
+            BSSR_CAN_Log("HAL_FDCAN_STATE_BUSY");
+            break;
+        case HAL_FDCAN_STATE_ERROR:
+            BSSR_CAN_Log("HAL_FDCAN_STATE_ERROR");
+            break;
+        default:
+            return;
+    }
+#endif // DEBUG
+}
+
+void BSSR_CAN_TASK_INIT(FDCAN_HandleTypeDef * hfdcan, UART_HandleTypeDef * huart2) {
+    fdcan = hfdcan;
+    uart = huart2;
+    BSSR_CAN_START();
+    BSSR_CAN_Log("CAN TxTask Started!");
+    xTaskCreate(BSSR_CAN_TxTask, "CanTxTask", configMINIMAL_STACK_SIZE, NULL, CAN_QUEUE_SEND_TASK_PRIORITY, NULL);
+}
+
+void BSSR_CAN_START() {
+
+    // //1. Initialize the FDCAN peripheral using HAL_FDCAN_Init function; waiting for f_can_init flag
+    // if (f_can_status == 0) return;
+    // // set flag to false, so this functino wont run next time
+    // f_can_status = 0;
+
+    //0. Initialize the queue for can tx
+    if ((xCanTxQueue = xQueueCreate(CAN_Q_LENGTH, CAN_ITEM_SIZE * sizeof(char))) == NULL) {
+        //Error
+        BSSR_CAN_Error("create xCanTxQueue", NULL);
+    }
+    if ((xCanRxQueue = xQueueCreate(CAN_Q_LENGTH, CAN_ITEM_SIZE * sizeof(char))) == NULL) {
+        //Error
+        BSSR_CAN_Error("create xCanRxQueue", NULL);
+    }
+    
+    //2. Configure the reception filters and optional features
+    filterConfig.IdType         = FDCAN_STANDARD_ID;
+    filterConfig.FilterIndex    = 0;
+    filterConfig.FilterType     = FDCAN_FILTER_MASK;
+    filterConfig.FilterConfig   = FDCAN_FILTER_TO_RXFIFO0;
+    filterConfig.FilterID1      = BSSR_CAN_RX_ID;
+    filterConfig.FilterID2      = BSSR_CAN_RX_MASK; /* For acceptance, MessageID and FilterID1 must match exactly */
+    
+    /* Prepare Tx Header */
+    txHeader.Identifier         = BSSR_CAN_TX_ID;
+    txHeader.IdType             = FDCAN_STANDARD_ID;
+    txHeader.TxFrameType        = FDCAN_DATA_FRAME;
+    txHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+    txHeader.BitRateSwitch      = FDCAN_BRS_OFF;
+    txHeader.FDFormat           = FDCAN_CLASSIC_CAN;
+    txHeader.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
+    txHeader.MessageMarker      = 0;
+
+    // /* Tx Event Header */
+    // txEvtHeader.Identifier      = BSSR_CAN_TX_ID;
+    // txEvtHeader.IdType          = FDCAN_STANDARD_ID;
+    // txEvtHeader.TxFrameType     = FDCAN_DATA_FRAME;
+    // txEvtHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+    // txEvtHeader.BitRateSwitch   = FDCAN_BRS_OFF;
+    // txEvtHeader.FDFormat        = FDCAN_CLASSIC_CAN;
+    // txEvtHeader.MessageMarker   = 0;
+
+    // /** Prepaer Rx Header */
+    // rxHeader.Identifier         = 0;
+    // rxHeader.IdType             = FDCAN_STANDARD_ID;
+    // rxHeader.RxFrameType        = FDCAN_FRAME_CLASSIC;
+    // rxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+    // rxHeader.BitRateSwitch      = FDCAN_BRS_OFF;
+    // rxHeader.FDFormat           = FDCAN_CLASSIC_CAN;
+    // rxHeader.IsFilterMatchingFrame = 1;
+
+    // Set up bytes
+
+#if CAN_ITEM_SIZE == 8
+    txHeader.DataLength         = FDCAN_DLC_BYTES_8;
+    txEvtHeader.DataLength      = FDCAN_DLC_BYTES_8;
+    rxHeader.DataLength         = FDCAN_DLC_BYTES_8;
+#elif CAN_ITEM_SIZE == 12
+    txHeader.DataLength         = FDCAN_DLC_BYTES_12;
+    txEvtHeader.DataLength      = FDCAN_DLC_BYTES_12;
+    rxHeader.DataLength         = FDCAN_DLC_BYTES_12;
+#elif CAN_ITEM_SIZE == 16
+    txHeader.DataLength         = FDCAN_DLC_BYTES_16;
+    txEvtHeader.DataLength      = FDCAN_DLC_BYTES_16;
+    rxHeader.DataLength         = FDCAN_DLC_BYTES_16;
+#elif CAN_ITEM_SIZE == 20
+    txHeader.DataLength         = FDCAN_DLC_BYTES_20;
+    txEvtHeader.DataLength      = FDCAN_DLC_BYTES_20;
+    rxHeader.DataLength         = FDCAN_DLC_BYTES_20;
+#elif CAN_ITEM_SIZE == 24
+    txHeader.DataLength         = FDCAN_DLC_BYTES_24;
+    txEvtHeader.DataLength      = FDCAN_DLC_BYTES_24;
+    rxHeader.DataLength         = FDCAN_DLC_BYTES_24;
+#elif CAN_ITEM_SIZE == 32
+    txHeader.DataLength         = FDCAN_DLC_BYTES_32;
+    txEvtHeader.DataLength      = FDCAN_DLC_BYTES_32;
+    rxHeader.DataLength         = FDCAN_DLC_BYTES_32;
+#elif CAN_ITEM_SIZE == 48
+    txHeader.DataLength         = FDCAN_DLC_BYTES_48;
+    txEvtHeader.DataLength      = FDCAN_DLC_BYTES_48;
+    rxHeader.DataLength         = FDCAN_DLC_BYTES_48;
+#else
+    txHeader.DataLength         = FDCAN_DLC_BYTES_64;
+    txEvtHeader.DataLength      = FDCAN_DLC_BYTES_64;
+    rxHeader.DataLength         = FDCAN_DLC_BYTES_64;
+#endif
+
+    if (HAL_OK != HAL_FDCAN_ConfigFilter(fdcan, &filterConfig)) {
+        // Error_HANDLER;
+        BSSR_CAN_Error("HAL_FDCAN_ConfigFilter", NULL);
+    };
+    //Reject other data to FIFO
+     if (HAL_OK != HAL_FDCAN_ConfigGlobalFilter(fdcan, FDCAN_REJECT, FDCAN_REJECT, ENABLE, ENABLE)) {
+         //Error Handler
+         BSSR_CAN_Error("HAL_FDCAN_ConfigGlobalFilter", NULL);
+     }
+    /* Configure Rx FIFO 0 watermark level to 2 */
+    if (HAL_OK != HAL_FDCAN_ConfigFifoWatermark(fdcan, FDCAN_CFG_RX_FIFO0, 2)) {
+        BSSR_CAN_Error("HAL_FDCAN_ConfigFifoWatermark FDCAN_CFG_RX_FIFO0", NULL);
+    }
+
+    //3. Start the FDCAN module using HAL_FDCAN_Start function. 
+    // At this level the node is active on the bus: it cansend and receive messages
+    if (HAL_OK != HAL_FDCAN_Start(fdcan)) {
+        // Error_HANDLER;
+        BSSR_CAN_Error("HAL_FDCAN_Start", NULL);
+    };
+
+    /* Activate New Message Interrupt */
+    if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan,
+            FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO0_FULL | 
+            FDCAN_IT_RX_FIFO0_WATERMARK | FDCAN_IT_RX_FIFO0_MESSAGE_LOST, 0)) {
+        BSSR_CAN_Error("HAL_FDCAN_ActivateNotification FDCAN_IT_RX_*", NULL);
+    }
+
+    if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan, 
+            FDCAN_IT_TX_EVT_FIFO_ELT_LOST | FDCAN_IT_TX_EVT_FIFO_FULL | 
+            FDCAN_IT_TX_EVT_FIFO_WATERMARK | FDCAN_IT_TX_EVT_FIFO_NEW_DATA |
+            FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_ABORT_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY, 0)) {
+        BSSR_CAN_Error("HAL_FDCAN_ActivateNotification FDCAN_IT_TX_*", NULL);
+    }
+
+    if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan, 
+            FDCAN_IT_RX_HIGH_PRIORITY_MSG|FDCAN_IT_RX_BUFFER_NEW_MESSAGE|
+            FDCAN_IT_TIMESTAMP_WRAPAROUND|FDCAN_IT_TIMEOUT_OCCURRED|
+            FDCAN_IT_CALIB_STATE_CHANGED|FDCAN_IT_CALIB_WATCHDOG_EVENT|
+            
+            FDCAN_IT_RX_FIFO1_MESSAGE_LOST|FDCAN_IT_RX_FIFO1_FULL|
+            FDCAN_IT_RX_FIFO1_WATERMARK|FDCAN_IT_RX_FIFO1_NEW_MESSAGE|
+            
+            FDCAN_IT_RAM_ACCESS_FAILURE|FDCAN_IT_ERROR_LOGGING_OVERFLOW|
+            FDCAN_IT_ERROR_PASSIVE|FDCAN_IT_ERROR_WARNING|FDCAN_IT_BUS_OFF|
+            FDCAN_IT_RAM_WATCHDOG|FDCAN_IT_ARB_PROTOCOL_ERROR|
+            FDCAN_IT_DATA_PROTOCOL_ERROR|FDCAN_IT_RESERVED_ADDRESS_ACCESS, 0)) {
+        BSSR_CAN_Error("HAL_FDCAN_ActivateNotification ALL_*", NULL);
+    }
+    
+    //4. Tx control functions
+    // if (HAL_FDCAN_EnableTxBufferRequest(fdcan,FDCAN_TX_BUFFER0) != HAL_OK){
+    //     BSSR_CAN_Error("HAL_FDCAN_EnableTxBufferRequest", NULL);
+    // }
+    char m[CAN_ITEM_SIZE] = "Start";
+    if (HAL_OK != HAL_FDCAN_AddMessageToTxFifoQ(fdcan, &txHeader, m)) {
+        BSSR_CAN_Error("HAL_FDCAN_AddMessageToTxFifoQ", fdcan);
+    }
+
+    BSSR_CAN_Log("Start sent");
+    BSSR_CAN_Status_Log(fdcan);
+
+}
+
+void BSSR_CAN_Tx(char * data) {
+    char d[CAN_ITEM_SIZE];
+    strncpy(d, data, CAN_ITEM_SIZE);    // avoid out of range problem
+    d[CAN_ITEM_SIZE - 1] = 0;
+    xQueueSendToBack(xCanTxQueue, d, 0);
+}
+
+void BSSR_CAN_TxTask(void * pvParameters) {
+    char msg[CAN_ITEM_SIZE];
+    for(;;) {
+        //check whether the tx fifo q is able to push and our q is not empty
+        while (HAL_FDCAN_GetTxFifoFreeLevel(fdcan) > 0) {
+            msg[0] = 0;
+            xQueueReceive(xCanTxQueue, msg, 0);
+            if (msg[0] == 0) break;
+
+            if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan,
+                    FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO0_FULL | 
+                    FDCAN_IT_RX_FIFO0_WATERMARK | FDCAN_IT_RX_FIFO0_MESSAGE_LOST, 0)) {
+                BSSR_CAN_Error("HAL_FDCAN_ActivateNotification FDCAN_IT_RX_*", NULL);
+            }
+
+            if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan, 
+                    FDCAN_IT_TX_EVT_FIFO_ELT_LOST | FDCAN_IT_TX_EVT_FIFO_FULL | 
+                    FDCAN_IT_TX_EVT_FIFO_WATERMARK | FDCAN_IT_TX_EVT_FIFO_NEW_DATA |
+                    FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_ABORT_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY, 0)) {
+                BSSR_CAN_Error("HAL_FDCAN_ActivateNotification FDCAN_IT_TX_*", NULL);
+            }
+
+            HAL_FDCAN_AddMessageToTxFifoQ(fdcan, &txHeader, msg);
+            // HAL_FDCAN_AddMessageToTxBuffer(fdcan, &txHeader, msg, FDCAN_TX_BUFFER0);
+            // strcat(msg, "(sent)");
+
+            // char buffer[100];
+            // sprintf(buffer, "TxQ Free Level:0x%x", HAL_FDCAN_GetTxFifoFreeLevel(fdcan));
+            // BSSR_CAN_Log(buffer);
+            
+            // sprintf(buffer, "RxQ Fill Level:0x%x", HAL_FDCAN_GetRxFifoFillLevel(fdcan, FDCAN_RX_FIFO0));
+            // BSSR_CAN_Log(buffer);
+        }
+        vTaskDelay(100);
+    }
+}
+
+void BSSR_CAN_testTask(void * pvParameters) {
+
+    char msg[CAN_ITEM_SIZE] = {0};
+    int a = -1;
+    vTaskDelay(1000);
+    for(;;) {
+        txHeader.Identifier++;
+        a = (a + 1) % 10;
+        msg [0] = 'T';
+        msg [1] = a + 48;
+        msg [2] = ':';
+        for (int i = 3; i < CAN_ITEM_SIZE - 1; i++) {
+            msg[i] = 'a' + (a + i) % 26;
+        }
+        msg [CAN_ITEM_SIZE - 1] = 0;
+        BSSR_CAN_Tx(msg);
+        vTaskDelay(997);
+    }
+}
+
+void BSSR_CAN_TEST(FDCAN_HandleTypeDef * hfdcan) {
+    xTaskCreate(BSSR_CAN_testTask, "CanTestTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+}
+
+
+/**
+ * Callback for RxFifo0
+ * */
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+    BSSR_CAN_Log("RxFifo0Callback");
+    BSSR_CAN_Status_Log(hfdcan);
+
+    
+    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_MESSAGE_LOST) 
+        BSSR_CAN_Log("FDCAN_IT_RX_FIFO0_MESSAGE_LOST");
+    if (RxFifo0ITs &  FDCAN_IT_RX_FIFO0_FULL)
+        BSSR_CAN_Log("FDCAN_IT_RX_FIFO0_FULL");
+    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_WATERMARK)
+        BSSR_CAN_Log("FDCAN_IT_RX_FIFO0_WATERMARK");
+    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE)
+        BSSR_CAN_Log("FDCAN_IT_RX_FIFO0_NEW_MESSAGE");
+
+    // HAL_FDCAN_GetRxMessage
+    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
+        char msg[CAN_ITEM_SIZE] = {0};
+        if (HAL_OK == HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxHeader, msg)) {
+            BaseType_t taskWoken = pdFALSE;
+            xQueueSendToBackFromISR(xCanRxQueue, msg, &taskWoken);
+            char buffer[100];
+            sprintf(buffer, "MSG ID=%d, CONTENT=%s", rxHeader.Identifier, msg);
+            BSSR_CAN_Log(buffer);
+        }
+    }
+}
+
+void HAL_FDCAN_RxBufferNewMessageCallback(FDCAN_HandleTypeDef *hfdcan) {
+    // HAL_FDCAN_GetRxMessage(hfdcan)
+        BSSR_CAN_Log("RxBufferNewMessageCallback");
+        
+}
+
+void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs){
+    BSSR_CAN_Log("RxFifo1Received");
+}
+
+void HAL_FDCAN_TxEventFifoCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t TxEventFifoITs) {
+
+    BSSR_CAN_Log("TxEventFifoCallback");
+    HAL_FDCAN_GetTxEvent(hfdcan, &txEvtHeader);
+
+    if (TxEventFifoITs & FDCAN_IT_TX_EVT_FIFO_ELT_LOST)
+        BSSR_CAN_Log("FDCAN_IT_TX_EVT_FIFO_ELT_LOST");
+    if (TxEventFifoITs & FDCAN_IT_TX_EVT_FIFO_FULL)
+        BSSR_CAN_Log("FDCAN_IT_TX_EVT_FIFO_FULL");
+    if (TxEventFifoITs & FDCAN_IT_TX_EVT_FIFO_WATERMARK)
+        BSSR_CAN_Log("FDCAN_IT_TX_EVT_FIFO_WATERMARK");
+    if (TxEventFifoITs & FDCAN_IT_TX_EVT_FIFO_NEW_DATA)
+        BSSR_CAN_Log("FDCAN_IT_TX_EVT_FIFO_NEW_DATA");
+}
+
+void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef *hfdcan) {
+    
+    BSSR_CAN_Log("TxFifoEmptyCallback");
+}
+
+void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t BufferIndexes) {
+    BSSR_CAN_Log("HAL_FDCAN_TxBufferCompleteCallback");
+}
+void HAL_FDCAN_TxBufferAbortCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t BufferIndexes) {
+    BSSR_CAN_Log("HAL_FDCAN_TxBufferAbortCallback");
+}
+
+
+
+void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
+    BSSR_CAN_Error("unknown", hfdcan);
+}
+
+// NOTE UNUSED callbacks
+
+void HAL_FDCAN_TimeoutOccurredCallback(FDCAN_HandleTypeDef *hfdcan) {
+    BSSR_CAN_Log("HAL_FDCAN_TimeoutOccurredCallback");
+}
+
+void HAL_FDCAN_HighPriorityMessageCallback(FDCAN_HandleTypeDef *hfdcan) {
+        BSSR_CAN_Log("HAL_FDCAN_HighPriorityMessageCallback");
+}
+
+void HAL_FDCAN_ClockCalibrationCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t ClkCalibrationITs){
+    BSSR_CAN_Log("HAL_FDCAN_ClockCalibrationCallback");
+}
+
+void HAL_FDCAN_TimestampWraparoundCallback(FDCAN_HandleTypeDef *hfdcan) {
+    BSSR_CAN_Log("HAL_FDCAN_TimestampWraparoundCallback");
+}
+
+void HAL_FDCAN_TT_ScheduleSyncCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t TTSchedSyncITs) {
+    BSSR_CAN_Log("HAL_FDCAN_TT_ScheduleSyncCallback");
+}
+
+void HAL_FDCAN_TT_TimeMarkCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t TTTimeMarkITs) {
+    BSSR_CAN_Log("HAL_FDCAN_TT_TimeMarkCallback");
+}
+
+void HAL_FDCAN_TT_StopWatchCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t SWTime, uint32_t SWCycleCount) {
+    BSSR_CAN_Log("HAL_FDCAN_TT_StopWatchCallback");
+}
+
+void HAL_FDCAN_TT_GlobalTimeCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t TTGlobTimeITs) {
+    BSSR_CAN_Log("HAL_FDCAN_TT_GlobalTimeCallback");
+}

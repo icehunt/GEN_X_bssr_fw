@@ -46,7 +46,12 @@
 *.mod*
 *.cmd
 .tmp_versions/
+**/Middlewares
+**/Drivers
 modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+Debug
+.vscode
