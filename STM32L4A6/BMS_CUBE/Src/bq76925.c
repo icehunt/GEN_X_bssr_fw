@@ -110,6 +110,12 @@ void BQ_writeI2C_IT(BQ_t *bq, uint8_t address, BqI2CTask task)
     if (HAL_OK != HAL_I2C_Master_Transmit_IT(bq->i2c,
                                              ((BQ_GROUP_ADDRESS << 3) | (address & 0x1F)) << 1, bq->regMap + (address & 0x1F), 1))
         BQ_Error(bq);
+
+//    if (HAL_OK != HAL_I2C_Master_Transmit(bq->i2c,
+//                                             ((BQ_GROUP_ADDRESS << 3) | (address & 0x1F)) << 1, bq->regMap + (address & 0x1F), 1, 1000))
+//        BQ_Error(bq);
+//
+//    BQ_I2cCallback(bq, bq->i2c);
 }
 
 void BQ_readI2C_IT(BQ_t *bq, uint8_t address, BqI2CTask task)
@@ -130,6 +136,11 @@ void BQ_readI2C_IT(BQ_t *bq, uint8_t address, BqI2CTask task)
     if (HAL_OK != HAL_I2C_Master_Receive_IT(bq->i2c,
                                             ((BQ_GROUP_ADDRESS << 3) | (address & 0x1F)) << 1, bq->regMap + (address & 0x1F), 1))
         BQ_Error(bq);
+
+//    if (HAL_OK != HAL_I2C_Master_Receive(bq->i2c,
+//                                            ((BQ_GROUP_ADDRESS << 3) | (address & 0x1F)) << 1, bq->regMap + (address & 0x1F), 1, 1000))
+//        BQ_Error(bq);
+//    BQ_I2cCallback(bq, bq->i2c);
 }
 
 uint8_t BQ_getCurrentAlert(BQ_t *bq)

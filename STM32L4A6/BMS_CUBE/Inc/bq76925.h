@@ -163,9 +163,9 @@ typedef struct BQ{
 	uint8_t regMap[0x20];
 	uint8_t adcRunning; 
 	uint8_t batIndex;
+    uint8_t tempIndex;
     uint8_t caliMode;
 	uint8_t readDone;
-    uint8_t tempIndex;
     uint8_t mode;
     double cellVoltages[6];
     uint8_t warningCode;

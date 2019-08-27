@@ -28,6 +28,7 @@
 #include "bq76925.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "BssrL4Can.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,7 +49,9 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc2;
 
-I2C_HandleTypeDef hi2c1;
+CAN_HandleTypeDef hcan1;
+
+I2C_HandleTypeDef hi2c2;
 
 UART_HandleTypeDef huart2;
 
@@ -70,8 +73,9 @@ ADC_ChannelConfTypeDef adc2_channel;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_I2C1_Init(void);
 static void MX_ADC2_Init(void);
+static void MX_CAN1_Init(void);
+static void MX_I2C2_Init(void);
 void StartDefaultTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
@@ -85,6 +89,9 @@ void BqBatSetCallback(BQ_t *);
 void BqBatDoneCallback(BQ_t *);
 
 void setADC2Channel(uint8_t channel);
+
+// TODO CAN related
+void CAN_INIT(void);
 
 /* USER CODE END PFP */
 
@@ -123,10 +130,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_I2C1_Init();
   MX_ADC2_Init();
+  MX_CAN1_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
-
+//  #if CAN_ENABLED == 1
+//    //HAL_UART_Transmit(&huart2, "Starting CAN Tasks\r\n", strlen("Starting CAN Tasks\r\n"), 100);
+//    CAN_INIT();
+//  #endif
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -147,7 +158,8 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+
+    osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -188,17 +200,16 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
-  RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-  RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
-  RCC_OscInitStruct.PLL.PLLM = 1;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 2;
   RCC_OscInitStruct.PLL.PLLN = 40;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -216,13 +227,13 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_I2C1
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_I2C2
                               |RCC_PERIPHCLK_ADC;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
+  PeriphClkInit.I2c2ClockSelection = RCC_I2C2CLKSOURCE_PCLK1;
   PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_PLLSAI1;
-  PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_MSI;
-  PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
+  PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_HSI;
+  PeriphClkInit.PLLSAI1.PLLSAI1M = 2;
   PeriphClkInit.PLLSAI1.PLLSAI1N = 16;
   PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV2;
   PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
@@ -297,48 +308,85 @@ static void MX_ADC2_Init(void)
 }
 
 /**
-  * @brief I2C1 Initialization Function
+  * @brief CAN1 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_I2C1_Init(void)
+static void MX_CAN1_Init(void)
 {
 
-  /* USER CODE BEGIN I2C1_Init 0 */
+  /* USER CODE BEGIN CAN1_Init 0 */
 
-  /* USER CODE END I2C1_Init 0 */
+  /* USER CODE END CAN1_Init 0 */
 
-  /* USER CODE BEGIN I2C1_Init 1 */
+  /* USER CODE BEGIN CAN1_Init 1 */
 
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x10909CEC;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  /* USER CODE END CAN1_Init 1 */
+  hcan1.Instance = CAN1;
+  hcan1.Init.Prescaler = 5;
+  hcan1.Init.Mode = CAN_MODE_NORMAL;
+  hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
+  hcan1.Init.TimeSeg1 = CAN_BS1_13TQ;
+  hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
+  hcan1.Init.TimeTriggeredMode = DISABLE;
+  hcan1.Init.AutoBusOff = DISABLE;
+  hcan1.Init.AutoWakeUp = DISABLE;
+  hcan1.Init.AutoRetransmission = DISABLE;
+  hcan1.Init.ReceiveFifoLocked = DISABLE;
+  hcan1.Init.TransmitFifoPriority = DISABLE;
+  if (HAL_CAN_Init(&hcan1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CAN1_Init 2 */
+
+  /* USER CODE END CAN1_Init 2 */
+
+}
+
+/**
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_Init(void)
+{
+
+  /* USER CODE BEGIN I2C2_Init 0 */
+
+  /* USER CODE END I2C2_Init 0 */
+
+  /* USER CODE BEGIN I2C2_Init 1 */
+
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.Timing = 0x10909CEC;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
   {
     Error_Handler();
   }
   /** Configure Analogue filter 
   */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
   {
     Error_Handler();
   }
   /** Configure Digital filter 
   */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN I2C1_Init 2 */
+  /* USER CODE BEGIN I2C2_Init 2 */
 
-  /* USER CODE END I2C1_Init 2 */
+  /* USER CODE END I2C2_Init 2 */
 
 }
 
@@ -366,7 +414,8 @@ static void MX_USART2_UART_Init(void)
   huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
   huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_SWAP_INIT;
+  huart2.AdvancedInit.Swap = UART_ADVFEATURE_SWAP_ENABLE;
   if (HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
@@ -387,6 +436,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -406,6 +456,22 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB4 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF4_I2C3;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB8 PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
@@ -489,7 +555,7 @@ void voltageCheck(uint8_t voltageIndex) {
 void StartBqTask(void const *argument)
 {
 
-    bq.i2c = &hi2c1;
+    bq.i2c = &hi2c2;
     bq.statusUpdateDone = BqStatusUpdateDoneCallback;
     bq.i2cTxCallback = BqI2cTxCallback;
     bq.i2cRxCallback = BqI2cRxCallback;
@@ -499,13 +565,19 @@ void StartBqTask(void const *argument)
     BQ_setSleep(&bq, 0);
     char msg[120];
     int cnt = 0;
+//    sprintf(msg, "Try connecting the I2C %d times......\r\n", cnt++);
+//    int res = HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
     while (BQ_ERROR == BQ_i2cTest(&bq))
     {
-//    	osDelay(10);
+   	// osDelay(10);
         // ERROR here
         sprintf(msg, "Try connecting the I2C %d times......\r\n", cnt++);
         HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
     }
+	#if CAN_ENABLED == 1
+	//HAL_UART_Transmit(&huart2, "Starting CAN Tasks\r\n", strlen("Starting CAN Tasks\r\n"), 100);
+		CAN_INIT();
+	#endif
     int data;
     // bq.regMap[CELL_CTL_ADDRESS] = 0b00000;
     BQ_updateStatus_IT(&bq);
@@ -562,11 +634,7 @@ void StartBqTask(void const *argument)
 
                 if (!firstSetOfData && BQ_GOOD != BQ_checkTemp(&bq, temp)) {
                     char * warningMsg = BQ_getWarningMsg(&bq);
-                    sprintf(msg, "=======================================\r\n");
-                    HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
-                    sprintf(msg, "| ⚠ TEMP WARNING: %s |\r\n", warningMsg);
-                    HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
-                    sprintf(msg, "=======================================\r\n");
+                    sprintf(msg, "TEMP WARNING: %s\r\n", warningMsg);
                     HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
                 }
 
@@ -598,6 +666,15 @@ void StartBqTask(void const *argument)
                     BQ_readBattery(&bq, 7, 1);
 
                     firstSetOfData = 0;
+                    #if CAN_ENABLED == 1
+                      // TODO Transmit DATA to the CAN
+                      for (int i = 1; i <= 5; i++){
+                        uint8_t data[8];
+                        uint32_t volt, temp;
+
+                        BSSR_CAN_Tx(i, data);
+                      }
+                    #endif
                 }
             }
             else if (voltageIndex <= 6)
@@ -611,11 +688,7 @@ void StartBqTask(void const *argument)
 
                 if (!firstSetOfData && BQ_GOOD != BQ_checkVoltage(&bq, voltageIndex)) {
                     char * warningMsg = BQ_getWarningMsg(&bq);
-                    sprintf(msg, "=======================================\r\n");
-                    HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
-                    sprintf(msg, "| ⚠ VOLTAGE WARNING: %s |\r\n", warningMsg);
-                    HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
-                    sprintf(msg, "=======================================\r\n");
+                    sprintf(msg, "VOLTAGE WARNING: %s\r\n", warningMsg);
                     HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
                 }
 
@@ -703,6 +776,13 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
     BQ_I2cCallback(&bq, hi2c);
 }
 
+void CAN_INIT(void) {
+  // BssrL4CAN bCan;
+  // bCan.handle = &hcan1;
+  // BSSR_CAN_Test(&bCan);
+  BSSR_CAN_TASK_INIT(&hcan1, &huart2);
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -714,6 +794,9 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void const * argument)
 {
+    
+    
+    
 
   /* USER CODE BEGIN 5 */
     /* Infinite loop */

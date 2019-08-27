@@ -60,8 +60,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define ADC_VREF_Pin GPIO_PIN_0
 #define ADC_VREF_GPIO_Port GPIOC
-#define ADV_VC_Pin GPIO_PIN_1
-#define ADV_VC_GPIO_Port GPIOC
+#define ADC_VC_Pin GPIO_PIN_1
+#define ADC_VC_GPIO_Port GPIOC
 #define ADC_VI_Pin GPIO_PIN_2
 #define ADC_VI_GPIO_Port GPIOC
 #define ADC_T1_Pin GPIO_PIN_3
