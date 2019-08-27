@@ -108,23 +108,23 @@ void BSSR_CAN_START() {
     txHeader.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
     txHeader.MessageMarker      = 0;
 
-    /* Tx Event Header */
-    txEvtHeader.Identifier      = BSSR_CAN_TX_ID;
-    txEvtHeader.IdType          = FDCAN_STANDARD_ID;
-    txEvtHeader.TxFrameType     = FDCAN_DATA_FRAME;
-    txEvtHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-    txEvtHeader.BitRateSwitch   = FDCAN_BRS_OFF;
-    txEvtHeader.FDFormat        = FDCAN_CLASSIC_CAN;
-    txEvtHeader.MessageMarker   = 0;
+    // /* Tx Event Header */
+    // txEvtHeader.Identifier      = BSSR_CAN_TX_ID;
+    // txEvtHeader.IdType          = FDCAN_STANDARD_ID;
+    // txEvtHeader.TxFrameType     = FDCAN_DATA_FRAME;
+    // txEvtHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+    // txEvtHeader.BitRateSwitch   = FDCAN_BRS_OFF;
+    // txEvtHeader.FDFormat        = FDCAN_CLASSIC_CAN;
+    // txEvtHeader.MessageMarker   = 0;
 
-    /** Prepaer Rx Header */
-    rxHeader.Identifier         = 0;
-    rxHeader.IdType             = FDCAN_STANDARD_ID;
-    rxHeader.RxFrameType        = FDCAN_FRAME_CLASSIC;
-    rxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-    rxHeader.BitRateSwitch      = FDCAN_BRS_OFF;
-    rxHeader.FDFormat           = FDCAN_CLASSIC_CAN;
-    rxHeader.IsFilterMatchingFrame = 1;
+    // /** Prepaer Rx Header */
+    // rxHeader.Identifier         = 0;
+    // rxHeader.IdType             = FDCAN_STANDARD_ID;
+    // rxHeader.RxFrameType        = FDCAN_FRAME_CLASSIC;
+    // rxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+    // rxHeader.BitRateSwitch      = FDCAN_BRS_OFF;
+    // rxHeader.FDFormat           = FDCAN_CLASSIC_CAN;
+    // rxHeader.IsFilterMatchingFrame = 1;
 
     // Set up bytes
 
@@ -195,6 +195,21 @@ void BSSR_CAN_START() {
             FDCAN_IT_TX_EVT_FIFO_WATERMARK | FDCAN_IT_TX_EVT_FIFO_NEW_DATA |
             FDCAN_IT_TX_COMPLETE | FDCAN_IT_TX_ABORT_COMPLETE | FDCAN_IT_TX_FIFO_EMPTY, 0)) {
         BSSR_CAN_Error("HAL_FDCAN_ActivateNotification FDCAN_IT_TX_*", NULL);
+    }
+
+    if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan, 
+            FDCAN_IT_RX_HIGH_PRIORITY_MSG|FDCAN_IT_RX_BUFFER_NEW_MESSAGE|
+            FDCAN_IT_TIMESTAMP_WRAPAROUND|FDCAN_IT_TIMEOUT_OCCURRED|
+            FDCAN_IT_CALIB_STATE_CHANGED|FDCAN_IT_CALIB_WATCHDOG_EVENT|
+            
+            FDCAN_IT_RX_FIFO1_MESSAGE_LOST|FDCAN_IT_RX_FIFO1_FULL|
+            FDCAN_IT_RX_FIFO1_WATERMARK|FDCAN_IT_RX_FIFO1_NEW_MESSAGE|
+            
+            FDCAN_IT_RAM_ACCESS_FAILURE|FDCAN_IT_ERROR_LOGGING_OVERFLOW|
+            FDCAN_IT_ERROR_PASSIVE|FDCAN_IT_ERROR_WARNING|FDCAN_IT_BUS_OFF|
+            FDCAN_IT_RAM_WATCHDOG|FDCAN_IT_ARB_PROTOCOL_ERROR|
+            FDCAN_IT_DATA_PROTOCOL_ERROR|FDCAN_IT_RESERVED_ADDRESS_ACCESS, 0)) {
+        BSSR_CAN_Error("HAL_FDCAN_ActivateNotification ALL_*", NULL);
     }
     
     //4. Tx control functions

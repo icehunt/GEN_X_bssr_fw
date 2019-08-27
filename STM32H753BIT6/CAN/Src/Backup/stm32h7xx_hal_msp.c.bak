@@ -2015,7 +2015,7 @@ static void HAL_FMC_MspInit(void){
   /* USER CODE BEGIN FMC_MspInit 0 */
 
   /* USER CODE END FMC_MspInit 0 */
-  GPIO_InitTypeDef GPIO_InitStruct;
+  GPIO_InitTypeDef GPIO_InitStruct ={0};
   if (FMC_Initialized) {
     return;
   }

@@ -70,7 +70,7 @@ void BSSR_CAN_TASK_INIT(FDCAN_HandleTypeDef * hfdcan, UART_HandleTypeDef * huart
     uart = huart2;
     BSSR_CAN_START();
     BSSR_CAN_Log("CAN TxTask Started!");
-    xTaskCreate(BSSR_CAN_TxTask, "CanTxTask", configMINIMAL_STACK_SIZE, NULL, CAN_QUEUE_SEND_TASK_PRIORITY, NULL);
+    //xTaskCreate(BSSR_CAN_TxTask, "CanTxTask", configMINIMAL_STACK_SIZE, NULL, CAN_QUEUE_SEND_TASK_PRIORITY, NULL);
 }
 
 void BSSR_CAN_START() {
@@ -286,7 +286,8 @@ void BSSR_CAN_testTask(void * pvParameters) {
         }
         msg [CAN_ITEM_SIZE - 1] = 0;
         BSSR_CAN_Tx(msg);
-        vTaskDelay(997);
+        //osDelay(10);
+        vTaskDelay(9970);
     }
 }
 
