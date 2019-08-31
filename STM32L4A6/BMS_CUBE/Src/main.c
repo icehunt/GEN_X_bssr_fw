@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "BssrL4Can.h"
+
+#define UART_EN 0 // change to 1 to enable all uart in main.c 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,10 +64,13 @@ int adc1count = 0;
 int adc2count = 0;
 double adc1sum = 0.0;
 uint32_t adc2sum = 0;
+int adcWorking = 0;
 
 osThreadId bqTaskHandle;
 BQ_t bq;
 ADC_ChannelConfTypeDef adc2_channel;
+int logReq = 0; // for uart log flag
+char msg[120];  // to save the uart messages
 
 /* USER CODE END PV */
 
@@ -89,6 +94,8 @@ void BqBatSetCallback(BQ_t *);
 void BqBatDoneCallback(BQ_t *);
 
 void setADC2Channel(uint8_t channel);
+void logBqResultsUart();
+void logBqResultsCan();
 
 // TODO CAN related
 void CAN_INIT(void);
@@ -283,7 +290,11 @@ static void MX_ADC2_Init(void)
   hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc2.Init.DMAContinuousRequests = DISABLE;
   hadc2.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
-  hadc2.Init.OversamplingMode = DISABLE;
+  hadc2.Init.OversamplingMode = ENABLE;
+  hadc2.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_16;
+  hadc2.Init.Oversampling.RightBitShift = ADC_RIGHTBITSHIFT_4;
+  hadc2.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
+  hadc2.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
   if (HAL_ADC_Init(&hadc2) != HAL_OK)
   {
     Error_Handler();
@@ -493,9 +504,12 @@ void setADC2Channel(uint8_t channel)
 void StartAdcReadTask(void const *argument)
 {
     // HAL_ADC_Start_IT(&hadc1);
-    HAL_UART_Transmit(&huart2, "Start ADC read\r\n", strlen("Start ADC read\r\n"), 100);
+    // #if UART_EN == 0
+      HAL_UART_Transmit(&huart2, "\r\n\r\nStart ADC read\r\n", strlen("\r\n\r\nStart ADC read\r\n"), 100);
+    // #endif
     setADC2Channel(2);
     HAL_ADC_Start_IT(&hadc2);
+    adcWorking = 1;
 
     // char s[10] = "Alive\r\n";
     // HAL_ADC_Start(&hadc2);
@@ -515,11 +529,21 @@ void StartAdcReadTask(void const *argument)
 
 void HAL_ADC_LevelOutOfWindowCallback(ADC_HandleTypeDef *hadc)
 {
+  #if UART_EN == 1
+    sprintf(msg, "HAL_ADC_LevelOutOfWindowCallback ERROR!\r\nREBOOTING...\r\n\r\n");
+    HAL_UART_Transmit(&huart2, msg, strlen(msg), 100);
+  #endif
+    HAL_NVIC_SystemReset(); // rebooting the MCU
     for (;;)
         ;
 }
 void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
 {
+  #if UART_EN == 1
+    sprintf(msg, "HAL_ADC_ErrorCallback ERROR!\r\nREBOOTING...\r\n\r\n");
+    HAL_UART_Transmit(&huart2, msg, strlen(msg), 100);
+  #endif
+    HAL_NVIC_SystemReset(); // rebooting the MCU
     for (;;)
         ;
 }
@@ -553,16 +577,17 @@ void voltageCheck(uint8_t voltageIndex) {
 
 void StartBqTask(void const *argument)
 {
-
     bq.i2c = &hi2c2;
+    bq.nSetOfData = 0;
     bq.statusUpdateDone = BqStatusUpdateDoneCallback;
     bq.i2cTxCallback = BqI2cTxCallback;
     bq.i2cRxCallback = BqI2cRxCallback;
     bq.batSetCallback = BqBatSetCallback;
     bq.batDoneCallback = BqBatDoneCallback;
+    bq.overSampleNum = 1;
+
     BQ_setRefSel(&bq, 1);
     BQ_setSleep(&bq, 0);
-    char msg[120];
     int cnt = 0;
 //    sprintf(msg, "Try connecting the I2C %d times......\r\n", cnt++);
 //    int res = HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
@@ -571,26 +596,35 @@ void StartBqTask(void const *argument)
    	// osDelay(10);
         // ERROR here
         sprintf(msg, "Try connecting the I2C %d times......\r\n", cnt++);
-        HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+        #if UART_EN == 1
+          HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+        #endif
+        #ifdef I2C_RETRY_TIMES
+          if (cnt > I2C_RETRY_TIMES) {
+            HAL_NVIC_SystemReset();
+          }
+        #endif
     }
-	#if CAN_ENABLED == 1
-	//HAL_UART_Transmit(&huart2, "Starting CAN Tasks\r\n", strlen("Starting CAN Tasks\r\n"), 100);
-		CAN_INIT();
-	#endif
+    #if CAN_ENABLED == 1
+    //HAL_UART_Transmit(&huart2, "Starting CAN Tasks\r\n", strlen("Starting CAN Tasks\r\n"), 100);
+      CAN_INIT();
+    #endif
     int data;
     // bq.regMap[CELL_CTL_ADDRESS] = 0b00000;
     BQ_updateStatus_IT(&bq);
 
+    while(!adcWorking) osDelay(0);
+
+
     int bq_cnt = 0;
     double voltages[7];
     double ADC_result;
-    int firstSetOfData = 1; // the first set of data is not accurate
 
     for (;;)
     {
         // HAL_UART_Transmit_IT(&huart2, s, strlen(s));
         // HAL_GPIO_TogglePin(GPIOC, LED_G_Pin);
-        if (bq.adcRunning && adc2count >= 100)
+        if (bq.adcRunning && adc2count >= bq.overSampleNum)
         {
             /* TODO stop ADC reading here */
             ADC_result = (1.0 * adc2sum / adc2count); // this should equals (ADC_Count / ADC_FULL_SCALE_COUNT)
@@ -606,7 +640,7 @@ void StartBqTask(void const *argument)
                 BQ_readTemp(&bq, 0, 0);
             }
         }
-        else if (bq.readDone && adc2count >= 100) // read I2C values
+        else if (bq.readDone && adc2count >= bq.overSampleNum) // read I2C values
         {
 
             // if (bq.batIndex <= 6)
@@ -621,21 +655,21 @@ void StartBqTask(void const *argument)
              *  */
 
             int voltageIndex = bq.batIndex;
-            osDelay(10); // wait for all adc done
+            // osDelay(10); // wait for all adc done
             if (bq.mode == BQ_MODE_TEMPERATURE)
             {
                 double volt = BQ_getTempVoltage(&bq, ADC_result, &huart2);
                 double resis = BQ_getTempResists(&bq, volt);
                 double temp = BQ_getTempResult(&bq, volt);
-                sprintf(msg, "Temp:%4d\tTemp:%d'C\tRes:%6dohm\tADC:%6d\tVolt:%6dmv\r\n", 
-                        bq.tempIndex, (int) (temp), (int) (resis) , (int)ADC_result, (int) (volt * 1000));
-                HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+                // sprintf(msg, "Temp:%4d\tTemp:%d'C\tRes:%6dohm\tADC:%6d\tVolt:%6dmv\r\n", 
+                //         bq.tempIndex, (int) (temp), (int) (resis) , (int)ADC_result, (int) (volt * 1000));
+                // HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
 
-                if (!firstSetOfData && BQ_GOOD != BQ_checkTemp(&bq, temp)) {
-                    char * warningMsg = BQ_getWarningMsg(&bq);
-                    sprintf(msg, "TEMP WARNING: %s\r\n", warningMsg);
-                    HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
-                }
+                // if (!bq.nSetOfData && BQ_GOOD != BQ_checkTemp(&bq, bq.tempIndex)) {
+                //     char * warningMsg = BQ_getWarningMsg(&bq);
+                //     sprintf(msg, "TEMP WARNING: %s\r\n", warningMsg);
+                //     HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+                // }
 
                 // start new query
                 if (bq.tempIndex == 1)
@@ -664,16 +698,20 @@ void StartBqTask(void const *argument)
                     bq.mode = BQ_MODE_VOLTAGE;
                     BQ_readBattery(&bq, 7, 1);
 
-                    firstSetOfData = 0;
-                    #if CAN_ENABLED == 1
-                      // TODO Transmit DATA to the CAN
-                      for (int i = 1; i <= 5; i++){
-                        uint8_t data[8];
-                        uint32_t volt, temp;
+                    if (bq.nSetOfData > 0) {
+                      logBqResultsCan();
+                    }
+                    bq.nSetOfData  = bq.nSetOfData % 4000000000 + 1;
 
-                        BSSR_CAN_Tx(i, data);
-                      }
-                    #endif
+                    // #if CAN_ENABLED == 1
+                    //   // TODO Transmit DATA to the CAN
+                    //   for (int i = 1; i <= 5; i++){
+                    //     uint8_t data[8];
+                    //     uint32_t volt, temp;
+
+                    //     BSSR_CAN_Tx(i, data);
+                    //   }
+                    // #endif
                 }
             }
             else if (voltageIndex <= 6)
@@ -682,13 +720,13 @@ void StartBqTask(void const *argument)
                 double voltage = BQ_getVoltage(&bq, ADC_result, NULL);
                 // voltage += (voltageIndex > 1 ? voltages[voltageIndex - 1] : 0);
                 voltages[voltageIndex] = voltage;
-                sprintf(msg, "Bat:%d\tVoltage:%6dmv\tADC:%5d\tVcout:%6dmv\r\n", (int)bq.batIndex, (int)(voltage * 1000.), (int)(ADC_result), (int)(VCOUT * 1000.));
-                HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+                // sprintf(msg, "Bat:%d\tVoltage:%6dmv\tADC:%5d\tVcout:%6dmv\r\n", (int)bq.batIndex, (int)(voltage * 1000.), (int)(ADC_result), (int)(VCOUT * 1000.));
+                // HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
 
-                if (!firstSetOfData && BQ_GOOD != BQ_checkVoltage(&bq, voltageIndex)) {
+                if (!bq.nSetOfData && BQ_GOOD != BQ_checkVoltage(&bq, voltageIndex)) {
                     char * warningMsg = BQ_getWarningMsg(&bq);
-                    sprintf(msg, "VOLTAGE WARNING: %s\r\n", warningMsg);
-                    HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+                    // sprintf(msg, "VOLTAGE WARNING: %s\r\n", warningMsg);
+                    // HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
                 }
 
                 if (voltageIndex < 5)
@@ -705,18 +743,18 @@ void StartBqTask(void const *argument)
             else if (voltageIndex == 7) // check for 0.5x Vref
             {
                 bq.cali.vref_0_5 = ADC_result;
-                sprintf(msg, "0.5xVref:\tADC:%d\r\n", (int)ADC_result);
-                HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+                // sprintf(msg, "0.5xVref:\tADC:%d\r\n", (int)ADC_result);
+                // HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
                 BQ_readBattery(&bq, 8, 1);
             }
             else if (voltageIndex == 8)
             {
                 bq.cali.vref_0_8_5 = ADC_result;
-                sprintf(msg, "0.85xVref:\tADC:%d\r\n", (int)ADC_result);
-                HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+                // sprintf(msg, "0.85xVref:\tADC:%d\r\n", (int)ADC_result);
+                // HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
                 BQ_ADCCalibration(&bq);
-                sprintf(msg, "ADC Slope:%6d\tOffset:%6d\r\n", (int)bq.cali.slope, (int)bq.cali.offset);
-                HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+                // sprintf(msg, "ADC Slope:%6d\tOffset:%6d\r\n", (int)bq.cali.slope, (int)bq.cali.offset);
+                // HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
                 BQ_readBattery(&bq, 1, 0);
             }
 
@@ -734,7 +772,14 @@ void StartBqTask(void const *argument)
             //			sprintf(msg, 'Status report: adc_running: %d, adc_count: %d\r\n', xxx, adc2count);
             //			HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
         }
-        osDelay(10);
+         // check for log 
+        // if (!bq.nSetOfData) logBqResultsCan();
+        if (logReq) {
+          logBqResultsUart();
+          logReq = 0;
+        }
+
+        osDelay(0);
     }
 }
 
@@ -782,6 +827,84 @@ void CAN_INIT(void) {
   BSSR_CAN_TASK_INIT(&hcan1, &huart2);
 }
 
+void logBqResultsCan() {
+  static int canCnt = 0;
+  uint32_t id = 0;
+  uint8_t data[CAN_ITEM_SIZE];
+  uint32_t mVolt, mTemp;
+  for (int i = 1; i <= 5; i++) {
+    id = (BSSR_CAN_TX_DEVICE_ID << 3) + i;
+    
+    mVolt = (int)(bq.cellVoltages[i] * 1000.);
+    mTemp = (int)((bq.cellTemps[i] + 273.) * 1000.);
+
+    // change format of the data
+    for (int byteIndex = 0; byteIndex < CAN_ITEM_SIZE / 2; byteIndex ++ ){
+      data[byteIndex] = mVolt & 0xFF;
+      mVolt >>= 8;
+
+      data[byteIndex + CAN_ITEM_SIZE / 2] = mTemp & 0xFF;
+      mTemp >>= 8;
+    }
+    #if UART_EN == 1
+      sprintf(msg, "CAN id: %4x data: ", id);
+      HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+      for (int ti = CAN_ITEM_SIZE - 1; ti >= 0; ti--) {
+        sprintf(msg, " %4x", data[ti]);
+        HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+        if (ti == CAN_ITEM_SIZE / 2) {
+          sprintf(msg, " | ");
+          HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+        }
+      }
+      sprintf(msg, "\r\n");
+      HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+    #endif
+    
+    #if CAN_ENABLED == 1
+      BSSR_CAN_Tx(id, data);
+    #endif
+  }
+}
+
+void logBqResultsUart() {
+  #if UART_EN  == 1
+    // log out all 
+    for (int i = 1; i <= 5; i ++) {
+      // log the voltage first
+      sprintf(msg, "Bat:%d\t\r\nVoltage:%6dmv\r\n", (int)i, (int)(bq.cellVoltages[i] * 1000.));
+      HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+
+      // check for voltage warning
+      if (BQ_GOOD != BQ_checkVoltage(&bq, i)) {
+        char * warningMsg = BQ_getWarningMsg(&bq);
+        sprintf(msg, "========================================\r\n");
+        HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+        sprintf(msg, "|VOLTAGE WARNING: %21s|\r\n", warningMsg);
+        HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+        sprintf(msg, "========================================\r\n");
+        HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+      }
+
+      // log the temps 
+      sprintf(msg, "Temp:%dmK\r\n", (int) ((bq.cellTemps[i] + 273.) * 1000.));
+      HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+
+      // check for temp warning
+      if (BQ_GOOD != BQ_checkTemp(&bq, i)) {
+        char * warningMsg = BQ_getWarningMsg(&bq);
+        sprintf(msg, "========================================\r\n");
+        HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+        sprintf(msg, "|TEMP WARNING: %24s|\r\n", warningMsg);
+        HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+        sprintf(msg, "========================================\r\n");
+        HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
+      }
+      // if (i == 5) break;
+    }
+  #endif
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -800,11 +923,16 @@ void StartDefaultTask(void const * argument)
   /* USER CODE BEGIN 5 */
     /* Infinite loop */
     //	HAL_UART_Transmit(&huart2, "Start default task\r\n", strlen("Start default task\r\n"), 100);
-    int seed = 0;
+    int status = 0;
     for (;;)
     {
-        HAL_GPIO_TogglePin(GPIOC, LED_B_Pin);
-        osDelay(500);
+      HAL_GPIO_TogglePin(GPIOC, LED_B_Pin);
+      if (status && bq.nSetOfData > 0) {
+        // logBqResultsUart();
+        logReq = 1;
+      }
+      status = !status;
+      osDelay(status ? 800 : 200);
     }
   /* USER CODE END 5 */ 
 }
@@ -837,11 +965,11 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
     /* User can add his own implementation to report the HAL error return state */
-
-    char msg[30] = "UNKNOWN ERROR!\r\n";
+  #if UART_EN == 1
+    sprintf(msg, "UNKNOWN ERROR!\r\nREBOOTING...\r\n\r\n");
     HAL_UART_Transmit(&huart2, msg, strlen(msg), 100);
-    for (;;)
-        ;
+  #endif
+    HAL_NVIC_SystemReset(); // rebooting the MCU
   /* USER CODE END Error_Handler_Debug */
 }
 

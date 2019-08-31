@@ -1,0 +1,13 @@
+diff --git a/STM32L4A6/BMS_CUBE/Inc/BssrL4Can.h b/STM32L4A6/BMS_CUBE/Inc/BssrL4Can.h
+index eea8f33..75aa406 100644
+--- a/STM32L4A6/BMS_CUBE/Inc/BssrL4Can.h
++++ b/STM32L4A6/BMS_CUBE/Inc/BssrL4Can.h
+@@ -11,7 +11,7 @@
+ 
+ #define CAN_Q_LENGTH 10
+ #define CAN_ITEM_SIZE 8
+-#define BSSR_CAN_TX_DEVICE_ID 0x1
++#define BSSR_CAN_TX_DEVICE_ID 0x11
+ #define BSSR_CAN_FILTER_ID 0x0
+ #define BSSR_CAN_FILTER_MASK 0x7FE
+ 

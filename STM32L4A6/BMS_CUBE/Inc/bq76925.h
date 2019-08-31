@@ -6,6 +6,7 @@
 
 #define VCC3V3_mV 3300
 #define PULLUP_mOhm 10000000
+#define I2C_RETRY_TIMES 100
 
 // debug mode switch
 #ifndef DEBUG
@@ -167,7 +168,10 @@ typedef struct BQ{
     uint8_t caliMode;
 	uint8_t readDone;
     uint8_t mode;
+    uint8_t overSampleNum;
     double cellVoltages[6];
+    double cellTemps[6];
+    uint32_t nSetOfData;// the first set of data is not accurate
     uint8_t warningCode;
 
     /** 
@@ -295,7 +299,7 @@ void BQ_readTemp(BQ_t *bq, uint8_t tempIndex, uint8_t start);
 double BQ_getTempVoltage(BQ_t *bq, double ADC_read, UART_HandleTypeDef *uart);
 double BQ_getTempResists(BQ_t *bq, double voltage);
 double BQ_getTempResult(BQ_t *bq, double voltage);
-uint8_t BQ_checkTemp(BQ_t *bq, double temp);
+uint8_t BQ_checkTemp(BQ_t *bq, uint8_t index);
 
 /**
  * Handling the warning message
