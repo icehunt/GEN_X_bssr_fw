@@ -271,7 +271,9 @@ double BQ_getTempResists(BQ_t *bq, double volt) {
 }
 
 double BQ_getTempResult(BQ_t *bq, double volt) {
-    return (mohms_to_milliCelcius((int)(BQ_getTempResists(bq, volt) * 1000))) / 1000.;
+    double res = (mohms_to_milliCelcius((int)(BQ_getTempResists(bq, volt) * 1000))) / 1000.;
+    bq->cellTemps[bq->tempIndex] = res;
+    return res;
 }
 
 uint8_t BQ_ADCCalibration(BQ_t *bq)
@@ -417,11 +419,12 @@ uint8_t BQ_checkVoltage(BQ_t *bq, uint8_t index) {
     return bq->warningCode;
 }
 
-uint8_t BQ_checkTemp(BQ_t *bq, double temp) {
+uint8_t BQ_checkTemp(BQ_t *bq, uint8_t index) {
     static double lowTemps[] = {-6.75, -4.5, -2.25, -0.9, -0.45};
     static double highTemps[] = {51.75, 49.5, 47.25, 45.9, 45.45, 45};
     
     bq->warningCode = BQ_GOOD;  // Reset BQ_warningCode
+    double temp = bq->cellTemps[index];
 
     /* check for the low temp warnings */
     static int lowTempsLen = sizeof(lowTemps) / sizeof(lowTemps[0]);

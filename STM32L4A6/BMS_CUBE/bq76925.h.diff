@@ -1,0 +1,24 @@
+diff --git a/STM32L4A6/BMS_CUBE/Inc/bq76925.h b/STM32L4A6/BMS_CUBE/Inc/bq76925.h
+index 622d6ff..2d411c4 100644
+--- a/STM32L4A6/BMS_CUBE/Inc/bq76925.h
++++ b/STM32L4A6/BMS_CUBE/Inc/bq76925.h
+@@ -167,10 +167,7 @@ typedef struct BQ{
+     uint8_t caliMode;
+ 	uint8_t readDone;
+     uint8_t mode;
+-    uint8_t overSampleNum;
+     double cellVoltages[6];
+-    double cellTemps[6];
+-    uint8_t firstSetOfData;// the first set of data is not accurate
+     uint8_t warningCode;
+ 
+     /** 
+@@ -298,7 +295,7 @@ void BQ_readTemp(BQ_t *bq, uint8_t tempIndex, uint8_t start);
+ double BQ_getTempVoltage(BQ_t *bq, double ADC_read, UART_HandleTypeDef *uart);
+ double BQ_getTempResists(BQ_t *bq, double voltage);
+ double BQ_getTempResult(BQ_t *bq, double voltage);
+-uint8_t BQ_checkTemp(BQ_t *bq, uint8_t index);
++uint8_t BQ_checkTemp(BQ_t *bq, double temp);
+ 
+ /**
+  * Handling the warning message

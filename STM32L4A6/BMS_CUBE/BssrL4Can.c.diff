@@ -1,0 +1,21 @@
+diff --git a/STM32L4A6/BMS_CUBE/Src/BssrL4Can.c b/STM32L4A6/BMS_CUBE/Src/BssrL4Can.c
+index 0baba2e..96ede37 100644
+--- a/STM32L4A6/BMS_CUBE/Src/BssrL4Can.c
++++ b/STM32L4A6/BMS_CUBE/Src/BssrL4Can.c
+@@ -163,14 +163,12 @@ void BSSR_CAN_testTask(void * pvParameters) {
+     }
+ }
+ 
+-
+-
+ void BSSR_CAN_TASK_INIT(CAN_HandleTypeDef * can, UART_HandleTypeDef * huart2) {
+     bCan.handle = can;
+     BSSR_CAN_Set_Uart(huart2);
+     BSSR_CAN_Start();
+-    //    BSSR_CAN_Log("CAN TxTask Started!");
+-    // xTaskCreate(BSSR_CAN_testTask, "CanTestTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
++//    BSSR_CAN_Log("CAN TxTask Started!");
++    xTaskCreate(BSSR_CAN_testTask, "CanTestTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+ 
+     // xTaskCreate(BSSR_CAN_TxTask, "CanTxTask", configMINIMAL_STACK_SIZE, NULL, CAN_QUEUE_SEND_TASK_PRIORITY, NULL);
+ }

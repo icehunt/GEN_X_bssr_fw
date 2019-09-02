@@ -16,7 +16,7 @@ void BSSR_CAN_Set_Uart( UART_HandleTypeDef * huart) {
 
 static void BSSR_CAN_Error(char *msg, CAN_HandleTypeDef *hcan) {
     char buffer[128];
-    sprintf(buffer, "CAN TASK ERROR: %s\r\n", msg);
+    sprintf(buffer, "CAN TASK ERROR: %s\r\nRebooting...\r\n\r\n", msg);
     HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
     if (hcan != NULL) {
         sprintf(buffer, "\tERROR CODE: 0x%lx\r\n", HAL_CAN_GetError(hcan));
@@ -24,6 +24,7 @@ static void BSSR_CAN_Error(char *msg, CAN_HandleTypeDef *hcan) {
             HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
     }
 #ifdef DEBUG_ON
+    HAL_NVIC_SystemReset();
     for (;;);
 #endif
 }
@@ -167,8 +168,8 @@ void BSSR_CAN_TASK_INIT(CAN_HandleTypeDef * can, UART_HandleTypeDef * huart2) {
     bCan.handle = can;
     BSSR_CAN_Set_Uart(huart2);
     BSSR_CAN_Start();
-//    BSSR_CAN_Log("CAN TxTask Started!");
-    xTaskCreate(BSSR_CAN_testTask, "CanTestTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+    // BSSR_CAN_Log("CAN TxTask Started!");
+    // xTaskCreate(BSSR_CAN_testTask, "CanTestTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 
     // xTaskCreate(BSSR_CAN_TxTask, "CanTxTask", configMINIMAL_STACK_SIZE, NULL, CAN_QUEUE_SEND_TASK_PRIORITY, NULL);
 }

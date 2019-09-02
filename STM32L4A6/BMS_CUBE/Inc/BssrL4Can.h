@@ -11,7 +11,14 @@
 
 #define CAN_Q_LENGTH 10
 #define CAN_ITEM_SIZE 8
-#define BSSR_CAN_TX_DEVICE_ID 0x11
+
+/**
+ * Blue Sky 77 BMS CAN Frame ID format:
+ * bit[0-4]: 0x0
+ * bit[5-7]: DEVICE ID
+ * bit[8-10]: BATTERY ID (controlled by logBqResultsCan() in ../Src/main.c)
+ */
+#define BSSR_CAN_TX_DEVICE_ID 0x5   // change device id here
 #define BSSR_CAN_FILTER_ID 0x0
 #define BSSR_CAN_FILTER_MASK 0x7FE
 
