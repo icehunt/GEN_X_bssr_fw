@@ -348,60 +348,17 @@ void StartAdcTask(void const * argument)
   //BSSR_GPIO_IT_Set(GPIO_IN0_Pin, GOOD_TEST);
   HAL_UART_Transmit_IT(&huart2, "Start ADC \r\n", strlen("Start ADC\r\n"));
 
-//  sFilterConfig.IdType = FDCAN_STANDARD_ID;
-//  sFilterConfig.FilterIndex = 0;
-//  sFilterConfig.FilterType = FDCAN_FILTER_MASK;
-//  sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-//  sFilterConfig.FilterID1 = 0x111;
-//  sFilterConfig.FilterID2 = 0x0; /* For acceptance, MessageID and FilterID1 must match exactly */
-//  HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig);
-//  HAL_FDCAN_Start(&hfdcan1);
-//  setADCChannel(2);
-//  HAL_ADC_Start_IT(&hadc1);
-//  HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_WATERMARK, 0);
   /* Infinite loop */
   int channel_num = 2;
   char msg[50];
+	setADCChannel(channel_num);
   for(;;)
   {
-	setADCChannel(channel_num);
-	//sprintf(msg, "ADC Channel %d\r\n", channel_num);
-	//HAL_UART_Transmit_IT(&huart2, msg, strlen(msg));
-	//HAL_ADC_PollForConversion(&hadc1, 1000);
-	//uint32_t a = HAL_ADC_GetValue(&hadc1);
-	//char msg[50];
-	//sprintf(msg, "ADC Value %d\r\n", a);
-	//HAL_UART_Transmit(&huart2, msg, strlen(msg), 100);
-    //HAL_UART_Transmit_IT()
-    //HAL_ADC_Start_IT(&hadc1);
-    HAL_SPI_Receive_IT(&hspi2, &spi_in, 2);
+    HAL_ADC_Start_IT(&hadc1);
     osDelay(20);
   }
 }
 
-// void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
-// {
-//   if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_WATERMARK) != RESET)
-//   {
-//     /* Retreive Rx messages from RX FIFO0 */
-//     HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData);
-//     HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, &RxData[8]);
-//     HAL_UART_Transmit_IT(&huart2, "Got can\r\n", strlen("Got can\r\n"));
-//     /* Compare payload to expected data */
-// //    if (BufferCmp8b(TxData, RxData, 16) != 0)
-// //    {
-// //      Error_Handler();
-// //    }
-// //    else
-// //    {
-// //      //BSP_LED_On(LED1);
-// //
-// //      /* Activate Rx FIFO 0 watermark notification */
-// //      HAL_FDCAN_ActivateNotification(hfdcan, FDCAN_IT_RX_FIFO0_WATERMARK, 0);
-// //    }
-// HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_WATERMARK, 0);
-//   }
-// }
 /* USER CODE END 4 */
 
 /**

@@ -35,7 +35,7 @@ static void BSSR_CAN_Error(char *msg, FDCAN_HandleTypeDef * hfdcan) {
     for (;;);
 #endif
 }
-
+d htvz
 static inline void BSSR_CAN_Log(char *msg) {
 #ifdef DEBUG_ON
     char buffer[128];
@@ -320,7 +320,12 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
             BaseType_t taskWoken = pdFALSE;
             xQueueSendToBackFromISR(xCanRxQueue, msg, &taskWoken);
             char buffer[100];
-            sprintf(buffer, "MSG ID=%d, CONTENT=%s", rxHeader.Identifier, msg);
+            int boardId = rxHeader.Identifier >> 3;
+            int cellId = rxHeader.Identifier & 0x07;
+            int voltage = *(int *)(msg+4);
+            int temp = *(int *)msg;
+            sprintf(buffer, "MSG ID=%d, CONTENT=%s, boardId=%d, cellId=%d, voltage=%d, temp=%d", 
+                rxHeader.Identifier, msg, boardId, cellId, voltage, temp);
             BSSR_CAN_Log(buffer);
         }
     }
