@@ -6,6 +6,11 @@
 #include <stdio.h>
 #define DEBUG_ON
 
+#define MAX_TEMP 300
+#define MIN_TEMP 273
+#define MIN_VOLTAGE 0
+#define MAX_VOLTAGE 5000
+
 static FDCAN_FilterTypeDef filterConfig;
 static FDCAN_TxHeaderTypeDef txHeader;
 static FDCAN_RxHeaderTypeDef rxHeader;
@@ -326,6 +331,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
             int temp = *(int *)msg;
             sprintf(buffer, "MSG ID=%d, CONTENT=%s, boardId=%d, cellId=%d, voltage=%d, temp=%d", 
                 rxHeader.Identifier, msg, boardId, cellId, voltage, temp);
+            if(voltage > MAX_VOLTAGE || voltage < MIN_VOLTAGE || temp > MAX_TEMP || temp < MIN_TEMP){
+                // Trigger BSD
+                HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
+            }
             BSSR_CAN_Log(buffer);
         }
     }
