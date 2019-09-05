@@ -37,10 +37,10 @@ static void BSSR_CAN_Error(char *msg, FDCAN_HandleTypeDef * hfdcan) {
         HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
     }
 #ifdef DEBUG_ON
-    for (;;);
+//    for (;;);
 #endif
 }
-d htvz
+
 static inline void BSSR_CAN_Log(char *msg) {
 #ifdef DEBUG_ON
     char buffer[128];
@@ -222,9 +222,9 @@ void BSSR_CAN_START() {
     //     BSSR_CAN_Error("HAL_FDCAN_EnableTxBufferRequest", NULL);
     // }
     char m[CAN_ITEM_SIZE] = "Start";
-    if (HAL_OK != HAL_FDCAN_AddMessageToTxFifoQ(fdcan, &txHeader, m)) {
-        BSSR_CAN_Error("HAL_FDCAN_AddMessageToTxFifoQ", fdcan);
-    }
+    // if (HAL_OK != HAL_FDCAN_AddMessageToTxFifoQ(fdcan, &txHeader, m)) {
+    //     BSSR_CAN_Error("HAL_FDCAN_AddMessageToTxFifoQ", fdcan);
+    // }
 
     BSSR_CAN_Log("Start sent");
     BSSR_CAN_Status_Log(fdcan);
@@ -304,6 +304,8 @@ void BSSR_CAN_TEST(FDCAN_HandleTypeDef * hfdcan) {
 /**
  * Callback for RxFifo0
  * */
+char msg[CAN_ITEM_SIZE] = {0};
+char buffer[100];
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
     BSSR_CAN_Log("RxFifo0Callback");
     BSSR_CAN_Status_Log(hfdcan);
@@ -320,15 +322,14 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
     // HAL_FDCAN_GetRxMessage
     if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
-        char msg[CAN_ITEM_SIZE] = {0};
         if (HAL_OK == HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxHeader, msg)) {
-            BaseType_t taskWoken = pdFALSE;
-            xQueueSendToBackFromISR(xCanRxQueue, msg, &taskWoken);
-            char buffer[100];
+            // BaseType_t taskWoken = pdFALSE;
+            // xQueueSendToBackFromISR(xCanRxQueue, msg, &taskWoken);
+            
             int boardId = rxHeader.Identifier >> 3;
             int cellId = rxHeader.Identifier & 0x07;
-            int voltage = *(int *)(msg+4);
-            int temp = *(int *)msg;
+            int voltage = *(int *)(msg+0);
+            int temp = *(int *)(msg+4);
             sprintf(buffer, "MSG ID=%d, CONTENT=%s, boardId=%d, cellId=%d, voltage=%d, temp=%d", 
                 rxHeader.Identifier, msg, boardId, cellId, voltage, temp);
             if(voltage > MAX_VOLTAGE || voltage < MIN_VOLTAGE || temp > MAX_TEMP || temp < MIN_TEMP){

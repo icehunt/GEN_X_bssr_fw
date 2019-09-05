@@ -297,7 +297,7 @@ void BSSR_CAN_TEST(FDCAN_HandleTypeDef * hfdcan) {
 
 /**
  * Callback for RxFifo0
- * */
+ **/
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
     BSSR_CAN_Log("RxFifo0Callback");
     BSSR_CAN_Status_Log(hfdcan);
