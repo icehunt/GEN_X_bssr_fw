@@ -73,6 +73,7 @@ uint8_t spi_in[2];
 FDCAN_FilterTypeDef sFilterConfig;
 FDCAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[16];
+char canRam[16*8*10] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
