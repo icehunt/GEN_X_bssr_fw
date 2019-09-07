@@ -73,7 +73,7 @@ uint8_t spi_in[2];
 FDCAN_FilterTypeDef sFilterConfig;
 FDCAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[16];
-char canRam[16*8*10] = {0};
+static uint32_t canRam[2560] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -121,16 +121,16 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 
-  hfdcan1.msgRam.StandardFilterSA =     0;//(int)canRam;
-  hfdcan1.msgRam.ExtendedFilterSA =     0;//(int)(canRam + 16 * 8 * 1);
-  hfdcan1.msgRam.RxFIFO0SA =            (int)(canRam + 16 * 8 * 2);
-  hfdcan1.msgRam.RxFIFO1SA =            0;//(int)(canRam + 16 * 8 * 3);
-  hfdcan1.msgRam.RxBufferSA =           0;//(int)(canRam + 16 * 8 * 4);
-  hfdcan1.msgRam.TxEventFIFOSA =        0;//(int)(canRam + 16 * 8 * 5);
-  hfdcan1.msgRam.TxBufferSA =           0;//(int)(canRam + 16 * 8 * 6);
-  hfdcan1.msgRam.TxFIFOQSA =            0;//(int)(canRam + 16 * 8 * 7);
-  hfdcan1.msgRam.TTMemorySA =           0;//(int)(canRam + 16 * 8 * 8);
-  hfdcan1.msgRam.EndAddress =           (int)(canRam + 16 * 8 * 9);
+  hfdcan1.msgRam.StandardFilterSA =     (int)(canRam + 0);//0;
+  hfdcan1.msgRam.ExtendedFilterSA =     (int)(canRam + 128);//0;
+  hfdcan1.msgRam.RxFIFO0SA =            (int)(canRam + 128);//0;
+  hfdcan1.msgRam.RxFIFO1SA =            (int)(canRam + 128 + 1152);//0;
+  hfdcan1.msgRam.RxBufferSA =           (int)(canRam + 128 + 1152);//0;
+  hfdcan1.msgRam.TxEventFIFOSA =        (int)(canRam + 128 + 1152);//0;
+  hfdcan1.msgRam.TxBufferSA =           (int)(canRam + 128 + 1152);//0;
+  hfdcan1.msgRam.TxFIFOQSA =            (int)(canRam + 128 + 1152 + 256);//0;
+  hfdcan1.msgRam.TTMemorySA =           (int)(canRam + 128 + 1152 + 256);//0;
+  hfdcan1.msgRam.EndAddress =           (int)(canRam + 128 + 1152 + 256 + 256);//0;
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
