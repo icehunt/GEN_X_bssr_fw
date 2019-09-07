@@ -197,6 +197,11 @@ void BSSR_CAN_Start() {
     bCan.filterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
     bCan.filterConfig.FilterActivation = ENABLE;
     bCan.filterConfig.SlaveStartFilterBank = 0;
+
+    bCan.TxMailbox[0] = CAN_TX_MAILBOX0;
+    bCan.TxMailbox[1] = CAN_TX_MAILBOX1;
+    bCan.TxMailbox[2] = CAN_TX_MAILBOX2;
+
     if (HAL_CAN_ConfigFilter(bCan.handle, &bCan.filterConfig) != HAL_OK) {
         BSSR_CAN_Error("set HAL_CAN_ConfigFilter", bCan.handle);
     }
@@ -226,7 +231,7 @@ void BSSR_CAN_Tx(uint32_t id, uint8_t * data) {
     bCan.txHeader.DLC = 8;
     bCan.txHeader.TransmitGlobalTime = DISABLE;
 
-    HAL_CAN_AddTxMessage(bCan.handle, &bCan.txHeader, data, &bCan.TxMailbox[id % 3]);
+    HAL_CAN_AddTxMessage(bCan.handle, &bCan.txHeader, data, bCan.TxMailbox[id % 3]);
 
     // 3c) notification
     if (HAL_OK != (HAL_CAN_ActivateNotification(bCan.handle, 
