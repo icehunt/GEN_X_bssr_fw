@@ -778,7 +778,6 @@ void StartBqTask(void const *argument)
           logBqResultsUart();
           logReq = 0;
         }
-
         osDelay(0);
     }
 }
@@ -839,7 +838,7 @@ void logBqResultsCan() {
     mTemp = (int)((bq.cellTemps[i] + 273.) * 1000.);
 
     // change format of the data
-    for (int byteIndex = 0; byteIndex < CAN_ITEM_SIZE / 2; byteIndex ++ ){
+    for (int byteIndex = 0; byteIndex < CAN_ITEM_SIZE / 2; byteIndex ++ ){  
       data[byteIndex] = mVolt & 0xFF;
       mVolt >>= 8;
 
@@ -863,6 +862,7 @@ void logBqResultsCan() {
     
     #if CAN_ENABLED == 1
       BSSR_CAN_Tx(id, data);
+      osDelay(0);
     #endif
   }
 }

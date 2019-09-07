@@ -226,7 +226,7 @@ void BSSR_CAN_Tx(uint32_t id, uint8_t * data) {
     bCan.txHeader.DLC = 8;
     bCan.txHeader.TransmitGlobalTime = DISABLE;
 
-    HAL_CAN_AddTxMessage(bCan.handle, &bCan.txHeader, data, &bCan.TxMailbox0);
+    HAL_CAN_AddTxMessage(bCan.handle, &bCan.txHeader, data, &bCan.TxMailbox[id % 3]);
 
     // 3c) notification
     if (HAL_OK != (HAL_CAN_ActivateNotification(bCan.handle, 

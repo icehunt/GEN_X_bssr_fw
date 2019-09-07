@@ -19,8 +19,8 @@
  * bit[8-10]: BATTERY ID (controlled by logBqResultsCan() in ../Src/main.c)
  */
 #define BSSR_CAN_TX_DEVICE_ID 0x5   // change device id here
-#define BSSR_CAN_FILTER_ID 0x0
-#define BSSR_CAN_FILTER_MASK 0x7FE
+#define BSSR_CAN_FILTER_ID 0x7FF
+#define BSSR_CAN_FILTER_MASK 0x7FF
 
 /** Task Priorities */
 #define CAN_QUEUE_RECEIVE_TASK_PRIORITY (tskIDLE_PRIORITY+2)
@@ -35,7 +35,7 @@ typedef struct L4CAN {
     CAN_FilterTypeDef filterConfig;
     CAN_TxHeaderTypeDef txHeader;
     CAN_RxHeaderTypeDef rxHeader;
-    uint32_t TxMailbox0, TxMailbox1, TxMailbox2;
+    uint32_t TxMailbox[3];
     uint8_t TxData[8];
 
 } BssrL4CAN;

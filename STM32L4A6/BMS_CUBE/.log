@@ -1,18 +1,18 @@
-[INFO ] 2019-08-31 16:20:49,113 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Start Cube IDE services
-[INFO ] 2019-08-31 16:20:49,135 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Cube IDE services are relying on '1.0.2.3' product version and '20190708-0539(UTC)' build version 
-[INFO ] 2019-08-31 16:20:49,135 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Analyze Cube IDE services command line
-[INFO ] 2019-08-31 16:20:49,151 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Look for Cube IDE service type
-[INFO ] 2019-08-31 16:20:49,198 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Use Cube IDE service: 'Mx update project service'
-[INFO ] 2019-08-31 16:20:49,198 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Look for Cube IDE service option(s)
-[WARN ] 2019-08-31 16:20:49,198 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Argument '-rmiServerPort' is ignored
-[WARN ] 2019-08-31 16:20:49,198 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Argument '6543' is ignored
-[INFO ] 2019-08-31 16:20:49,198 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Check Cube IDE service option(s)
-[INFO ] 2019-08-31 16:20:49,198 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Run Cube IDE service
-[ERROR] 2019-08-31 16:20:51,734 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Project update internal error checking project compliancy: RTOS_battery_CUBE
-[ERROR] 2019-08-31 16:20:51,734 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Fail to complete service execution. Return code is '1005'. Related message to is 'Project update internal error checking project compliancy: RTOS_battery_CUBE'. 
-[INFO ] 2019-08-31 16:20:51,734 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Service 'Mx update project service' usage is:
-[INFO ] 2019-08-31 16:20:51,734 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - 	'-source / -src (Optional)' : Project source. Supported ones are: '[CUBE, MANAGED, NONMANAGED]'
-[INFO ] 2019-08-31 16:20:51,734 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - 	'-cubeScratchFile / -scratch ' : Cube scratch file
-[INFO ] 2019-08-31 16:20:51,734 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - 	'-buildType (Optional)' : Build type. Supported ones are: '[EXEC, LIB]'
-[INFO ] 2019-08-31 16:20:51,734 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - 	'-lang (Optional)' : Project language. Supported ones are: '[CPP, C]'
-[INFO ] 2019-08-31 16:20:51,734 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - End Cube IDE services
+[INFO ] 2019-09-06 19:14:37,054 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Start Cube IDE services
+[INFO ] 2019-09-06 19:14:37,074 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Cube IDE services are relying on '1.0.2.3' product version and '20190708-0539(UTC)' build version 
+[INFO ] 2019-09-06 19:14:37,077 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Analyze Cube IDE services command line
+[INFO ] 2019-09-06 19:14:37,088 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Look for Cube IDE service type
+[INFO ] 2019-09-06 19:14:37,119 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Use Cube IDE service: 'Mx update project service'
+[INFO ] 2019-09-06 19:14:37,119 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Look for Cube IDE service option(s)
+[WARN ] 2019-09-06 19:14:37,119 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Argument '-rmiServerPort' is ignored
+[WARN ] 2019-09-06 19:14:37,119 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Argument '6543' is ignored
+[INFO ] 2019-09-06 19:14:37,120 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Check Cube IDE service option(s)
+[INFO ] 2019-09-06 19:14:37,120 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Run Cube IDE service
+[ERROR] 2019-09-06 19:14:40,016 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Project update internal error checking project compliancy: RTOS_battery_CUBE
+[ERROR] 2019-09-06 19:14:40,016 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Fail to complete service execution. Return code is '1005'. Related message to is 'Project update internal error checking project compliancy: RTOS_battery_CUBE'. 
+[INFO ] 2019-09-06 19:14:40,016 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - Service 'Mx update project service' usage is:
+[INFO ] 2019-09-06 19:14:40,016 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - 	'-source / -src (Optional)' : Project source. Supported ones are: '[CUBE, MANAGED, NONMANAGED]'
+[INFO ] 2019-09-06 19:14:40,016 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - 	'-cubeScratchFile / -scratch ' : Cube scratch file
+[INFO ] 2019-09-06 19:14:40,016 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - 	'-buildType (Optional)' : Build type. Supported ones are: '[EXEC, LIB]'
+[INFO ] 2019-09-06 19:14:40,016 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - 	'-lang (Optional)' : Project language. Supported ones are: '[CPP, C]'
+[INFO ] 2019-09-06 19:14:40,016 com.st.stm32cube.ide.common.services.mx.rcp.CubeIdeServices - End Cube IDE services
