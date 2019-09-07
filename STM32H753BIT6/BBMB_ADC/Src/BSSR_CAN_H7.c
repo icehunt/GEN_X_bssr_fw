@@ -17,9 +17,14 @@ static FDCAN_RxHeaderTypeDef rxHeader;
 static FDCAN_TxEventFifoTypeDef txEvtHeader;
 static FDCAN_HandleTypeDef * fdcan;
 static UART_HandleTypeDef * uart;
+static uint32_t dataCnt;
 
 static QueueHandle_t xCanTxQueue = NULL;
 static QueueHandle_t xCanRxQueue = NULL;
+
+static char msg[CAN_ITEM_SIZE + 1] = {0};
+static char buffer[100];
+static int boardId, cellId, voltage, temp;
 
 static volatile double fake_rand() {
     static int seed = 1;
@@ -30,7 +35,7 @@ static volatile double fake_rand() {
 
 static void BSSR_CAN_Error(char *msg, FDCAN_HandleTypeDef * hfdcan) {
     char buffer[128];
-    sprintf(buffer, "CAN TASK ERROR: %s\r\n", msg);
+    sprintf(buffer, "CAN TASK: %s\r\n", msg);
     HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
     if (hfdcan != NULL) {
         sprintf(buffer, "\tERROR CODE: 0x%x\r\n", HAL_FDCAN_GetError(hfdcan));
@@ -74,8 +79,10 @@ void BSSR_CAN_TASK_INIT(FDCAN_HandleTypeDef * hfdcan, UART_HandleTypeDef * huart
     fdcan = hfdcan;
     uart = huart2;
     BSSR_CAN_START();
+    dataCnt = 0;
     // BSSR_CAN_Log("CAN TxTask Started!");
     // xTaskCreate(BSSR_CAN_TxTask, "CanTxTask", configMINIMAL_STACK_SIZE, NULL, CAN_QUEUE_SEND_TASK_PRIORITY, NULL);
+    xTaskCreate(BSSR_CAN_RxTask, "CanRxTask", configMINIMAL_STACK_SIZE, NULL, CAN_QUEUE_RECEIVE_TASK_PRIORITY, NULL);
 }
 
 void BSSR_CAN_START() {
@@ -177,9 +184,9 @@ void BSSR_CAN_START() {
         BSSR_CAN_Error("HAL_FDCAN_ConfigGlobalFilter", NULL);
     }
     /* Configure Rx FIFO 0 watermark level to 2 */
-    if (HAL_OK != HAL_FDCAN_ConfigFifoWatermark(fdcan, FDCAN_CFG_RX_FIFO0, 6)) {
-        BSSR_CAN_Error("HAL_FDCAN_ConfigFifoWatermark FDCAN_CFG_RX_FIFO0", NULL);
-    }
+    // if (HAL_OK != HAL_FDCAN_ConfigFifoWatermark(fdcan, FDCAN_CFG_RX_FIFO0, BSSR_CAN_WATERMARK_LEVEL)) {
+    //     BSSR_CAN_Error("HAL_FDCAN_ConfigFifoWatermark FDCAN_CFG_RX_FIFO0", NULL);
+    // }
 
     //3. Start the FDCAN module using HAL_FDCAN_Start function. 
     // At this level the node is active on the bus: it cansend and receive messages
@@ -189,12 +196,12 @@ void BSSR_CAN_START() {
     };
 
     /* Activate New Message Interrupt */
-    if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan,
-            // FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO0_FULL | 
-            FDCAN_IT_RX_FIFO0_FULL | 
-            FDCAN_IT_RX_FIFO0_WATERMARK | FDCAN_IT_RX_FIFO0_MESSAGE_LOST, 0)) {
-        BSSR_CAN_Error("HAL_FDCAN_ActivateNotification FDCAN_IT_RX_*", NULL);
-    }
+    // if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan,
+    //         // FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO0_FULL | 
+    //         FDCAN_IT_RX_FIFO0_FULL | 
+    //         FDCAN_IT_RX_FIFO0_WATERMARK | FDCAN_IT_RX_FIFO0_MESSAGE_LOST, 0)) {
+    //     BSSR_CAN_Error("HAL_FDCAN_ActivateNotification FDCAN_IT_RX_*", NULL);
+    // }
 
     if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan, 
             FDCAN_IT_TX_EVT_FIFO_ELT_LOST | FDCAN_IT_TX_EVT_FIFO_FULL | 
@@ -276,6 +283,16 @@ void BSSR_CAN_TxTask(void * pvParameters) {
     }
 }
 
+void BSSR_CAN_RxTask(void * pvParameters) {
+    BSSR_CAN_Log("RxTask started");
+    for (;;) {
+        if (HAL_FDCAN_GetRxFifoFillLevel(fdcan, FDCAN_RX_FIFO0) > 1) {
+            getTempVoltData(fdcan);
+        }
+        osDelay(0);
+    }
+}
+
 void BSSR_CAN_testTask(void * pvParameters) {
 
     char msg[CAN_ITEM_SIZE] = {0};
@@ -301,14 +318,12 @@ void BSSR_CAN_TEST(FDCAN_HandleTypeDef * hfdcan) {
     xTaskCreate(BSSR_CAN_testTask, "CanTestTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 }
 
-char msg[CAN_ITEM_SIZE + 1] = {0};
-char buffer[100];
-int boardId, cellId, voltage, temp;
 // TODO read data here
 void getTempVoltData(FDCAN_HandleTypeDef *hfdcan) {
     if (HAL_OK == HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxHeader, msg)) {
         // BaseType_t taskWoken = pdFALSE;
         // xQueueSendToBackFromISR(xCanRxQueue, msg, &taskWoken);
+        osDelay(0);
         
         boardId = rxHeader.Identifier >> 3;
         cellId = rxHeader.Identifier & 0x07;
@@ -328,6 +343,8 @@ void getTempVoltData(FDCAN_HandleTypeDef *hfdcan) {
                 HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
             }
             BSSR_CAN_Log(buffer);
+        } else {
+            BSSR_CAN_Log("Error in Reading");
         }
     }
 }
@@ -358,18 +375,13 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
         BSSR_CAN_Log("FDCAN_IT_RX_FIFO0_FULL");
     if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_WATERMARK)
         BSSR_CAN_Log("FDCAN_IT_RX_FIFO0_WATERMARK");
-    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE)
-        BSSR_CAN_Log("FDCAN_IT_RX_FIFO0_NEW_MESSAGE");
+    // if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE)
+    //     BSSR_CAN_Log("FDCAN_IT_RX_FIFO0_NEW_MESSAGE");
 
-    // HAL_FDCAN_GetRxMessage
-    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_WATERMARK || RxFifo0ITs & FDCAN_IT_RX_FIFO0_FULL) {
-        getTempVoltData(hfdcan);
-        getTempVoltData(hfdcan);
-        getTempVoltData(hfdcan);
-        getTempVoltData(hfdcan);
-        getTempVoltData(hfdcan);
-        getTempVoltData(hfdcan);
-    }
+    // // HAL_FDCAN_GetRxMessage
+    // if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_WATERMARK || RxFifo0ITs & FDCAN_IT_RX_FIFO0_FULL) {
+    //     for (int i = 0; i < BSSR_CAN_WATERMARK_LEVEL; i++) getTempVoltData(hfdcan);
+    // }
 
     if (HAL_OK != HAL_FDCAN_ActivateNotification(fdcan,
             // FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO0_FULL | 

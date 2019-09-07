@@ -123,14 +123,14 @@ int main(void)
 
   hfdcan1.msgRam.StandardFilterSA =     0;//(int)canRam;
   hfdcan1.msgRam.ExtendedFilterSA =     0;//(int)(canRam + 16 * 8 * 1);
-  hfdcan1.msgRam.RxFIFO0SA =            0;//(int)(canRam + 16 * 8 * 2);
+  hfdcan1.msgRam.RxFIFO0SA =            (int)(canRam + 16 * 8 * 2);
   hfdcan1.msgRam.RxFIFO1SA =            0;//(int)(canRam + 16 * 8 * 3);
   hfdcan1.msgRam.RxBufferSA =           0;//(int)(canRam + 16 * 8 * 4);
   hfdcan1.msgRam.TxEventFIFOSA =        0;//(int)(canRam + 16 * 8 * 5);
   hfdcan1.msgRam.TxBufferSA =           0;//(int)(canRam + 16 * 8 * 6);
   hfdcan1.msgRam.TxFIFOQSA =            0;//(int)(canRam + 16 * 8 * 7);
   hfdcan1.msgRam.TTMemorySA =           0;//(int)(canRam + 16 * 8 * 8);
-  hfdcan1.msgRam.EndAddress =           0;//(int)(canRam + 16 * 8 * 9);
+  hfdcan1.msgRam.EndAddress =           (int)(canRam + 16 * 8 * 9);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
