@@ -6,10 +6,10 @@
 #include <stdio.h>
 #define DEBUG_ON
 
-#define MAX_TEMP 300
-#define MIN_TEMP 273
-#define MIN_VOLTAGE 0
-#define MAX_VOLTAGE 5000
+#define MAX_TEMP 313000
+#define MIN_TEMP 273000
+#define MIN_VOLTAGE 3180
+#define MAX_VOLTAGE 3500
 
 static FDCAN_FilterTypeDef filterConfig;
 static FDCAN_TxHeaderTypeDef txHeader;
@@ -36,10 +36,10 @@ static volatile double fake_rand() {
 static void BSSR_CAN_Error(char *msg, FDCAN_HandleTypeDef * hfdcan) {
     char buffer[128];
     sprintf(buffer, "CAN TASK: %s\r\n", msg);
-    HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
+    //HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
     if (hfdcan != NULL) {
         sprintf(buffer, "\tERROR CODE: 0x%x\r\n", HAL_FDCAN_GetError(hfdcan));
-        HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
+       // HAL_UART_Transmit(uart, buffer, strlen(buffer), 200);
     }
 #ifdef DEBUG_ON
 //    for (;;);
@@ -50,7 +50,7 @@ static inline void BSSR_CAN_Log(char *msg) {
 #ifdef DEBUG_ON
     char buffer[128];
     sprintf(buffer, "CAN TASK Message: %s\r\n", msg);
-    HAL_UART_Transmit(uart, buffer, strlen(buffer), 1000);
+    //HAL_UART_Transmit(uart, buffer, strlen(buffer), 1000);
 #endif
 }
 
@@ -337,10 +337,14 @@ void getTempVoltData(FDCAN_HandleTypeDef *hfdcan) {
                 rxHeader.Identifier, 
                 *(uint8_t *)(msg+7), *(uint8_t *)(msg+6), *(uint8_t *)(msg+5), *(uint8_t *)(msg+4),
                 *(uint8_t *)(msg+3), *(uint8_t *)(msg+2), *(uint8_t *)(msg+1), *(uint8_t *)(msg+0),
-                boardId, cellId, voltage, temp);
+                boardId, cellId, voltage, (temp-273150));
             if(voltage > MAX_VOLTAGE || voltage < MIN_VOLTAGE || temp > MAX_TEMP || temp < MIN_TEMP){
                 // Trigger BSD
-                HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
+                HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_RESET);
+                HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_SET);
+                HAL_UART_Transmit_IT(uart, buffer, strlen(buffer));
+                HAL_UART_Transmit_IT(uart, "CAN TRIPPED\r\n", strlen("CAN TRIPPED\r\n"));
+
             }
             BSSR_CAN_Log(buffer);
         } else {

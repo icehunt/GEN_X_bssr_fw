@@ -6,8 +6,8 @@
 #include <stdio.h>
 #define DEBUG_ON
 
-#define MAX_TEMP 300
-#define MIN_TEMP 273
+#define MAX_TEMP 323000
+#define MIN_TEMP 273000
 #define MIN_VOLTAGE 0
 #define MAX_VOLTAGE 5000
 
@@ -340,7 +340,9 @@ void getTempVoltData(FDCAN_HandleTypeDef *hfdcan) {
                 boardId, cellId, voltage, temp);
             if(voltage > MAX_VOLTAGE || voltage < MIN_VOLTAGE || temp > MAX_TEMP || temp < MIN_TEMP){
                 // Trigger BSD
-                HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
+                HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_RESET);
+                HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_SET);
+
             }
             BSSR_CAN_Log(buffer);
         } else {

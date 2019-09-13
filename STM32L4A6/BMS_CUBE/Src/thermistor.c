@@ -74,6 +74,16 @@ const Thermistor_entry_t NTC_100K_4190B_Table[30] = {
 	{80, 11258000}, 	 {85, 9495800}, 		{90, 8042000}, 		 {95, 6837300},
 	{100, 5835100}, 	 {105, 4997800}
 };
+const Thermistor_entry_t NTC_10K_3963B_Table[30] = {
+	{-40, 337503000}, {-35, 243332000}, {-30, 177496000}, {-25, 130859000}, 
+	{-20, 97428000}, {-15, 73230000}, {-10, 55529000}, {-5, 42467000},
+	{0, 32747000}, {5, 25450000}, {10, 19932000}, {15, 15727000}, 
+	{20, 12498000}, {25, 10000000}, {30, 8054000}, {35, 6529000}, 
+	{40, 5324000}, {45, 4366000}, {50, 3601000}, {55, 2985000}, 
+	{60, 2488000}, {65, 2083000}, {70, 1752000}, {75, 1480000},
+	{80, 1256000}, {85, 1070000}, {90, 916000}, {95, 787000},
+	{100, 679000}, {105, 588000} 
+};
 #endif
 
 uint64_t adc_to_nanovolts(uint32_t s, uint32_t n){ //aggreagate sum | oversampling count
@@ -88,7 +98,8 @@ uint32_t nanovolts_to_milliohms(uint64_t v){
 	return (uint32_t)((dividend + divisor/2) / divisor);
 }
 
-const Thermistor_entry_t * lut = NTC_10K_3984B_Table;
+//const Thermistor_entry_t * lut = NTC_10K_3984B_Table; // Old one, testing with new one below now. 
+const Thermistor_entry_t * lut = NTC_10K_3963B_Table;
 
 uint8_t binarySearchOver(uint32_t mohms, uint8_t low, uint8_t high){ //higher temp ind
 	if(high-low == 1) return high;

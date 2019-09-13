@@ -52,6 +52,9 @@
 /* USER CODE BEGIN PD */
 #define CURRENT_LIMIT 3
 #define ADC_OFFSET 6
+#define VSB_UPPER_LIMIT 40000
+#define VSB_LOWER_LIMIT 20000
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -74,6 +77,8 @@ FDCAN_FilterTypeDef sFilterConfig;
 FDCAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[16];
 static uint32_t canRam[2560] = {0};
+uint8_t uart_rx_data;
+int send_to_can=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -145,9 +150,19 @@ int main(void)
   MX_TIM1_Init();
   MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
+  HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_2, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOI, GPIO_PIN_9, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
+
   BSSR_CAN_TASK_INIT(&hfdcan1, &huart2);
-  // osThreadDef(adcTask, StartAdcTask, osPriorityNormal, 0, 128);
-  // adcTaskHandle = osThreadCreate(osThread(adcTask), NULL);
+
+  osThreadDef(adcTask, StartAdcTask, osPriorityNormal, 0, 128);
+  adcTaskHandle = osThreadCreate(osThread(adcTask), NULL);
+
+  osThreadDef(spiTask, StartSpiTask, osPriorityNormal, 0, 128);
+  spiTaskHandle = osThreadCreate(osThread(spiTask), NULL);
+
   BSSR_CAN_TEST(&hfdcan1);
   /* USER CODE END 2 */
 
@@ -342,7 +357,7 @@ void GOOD_TEST(uint16_t GPIO_Pin){
 
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
-	HAL_UART_Transmit_IT(&huart2, "Got\r\n", strlen("Got\r\n"));
+	HAL_UART_Transmit_IT(&huart2, "Got SPI\r\n", strlen("Got SPI\r\n"));
 	if(hspi == &hspi2){
 		int spi_val = (int) *spi_in;
 		char msg[50];
@@ -357,17 +372,80 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 void StartAdcTask(void const * argument)
 {
   //BSSR_GPIO_IT_Set(GPIO_IN0_Pin, GOOD_TEST);
+  /*
+  HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
+  
+  osDelay(9);
+  char data[2] = {0, 0};
+  char data2[2];
+  int16_t data3;
+  HAL_SPI_TransmitReceive(&hspi3, data, &data3, 1, 10000);
+  HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_RESET);
+  char buf[50];
+  sprintf(buf, "SPI IN:%d\r\n", data3);
+  HAL_UART_Transmit_IT(&huart2, buf, strlen(buf)); */
   HAL_UART_Transmit_IT(&huart2, "Start ADC \r\n", strlen("Start ADC\r\n"));
-
+  //HAL_UART_Receive_IT(&huart2, &uart_rx_data, 1);
+  //HAL_UART_Receive(&huart2, &uart_rx_data, 1, 10000);
   /* Infinite loop */
   int channel_num = 2;
   char msg[50];
 	setADCChannel(channel_num);
   for(;;)
   {
-    HAL_ADC_Start_IT(&hadc1);
     osDelay(20);
   }
+}
+
+void StartSpiTask(void const * argument){
+  char sending_data[2] = {0, 0};
+  int16_t spi_in;
+  char buf[50];
+  int voltage;
+  for(;;){
+    //HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
+    osDelay(9);
+    HAL_SPI_TransmitReceive(&hspi3, sending_data, &spi_in, 1, 50);
+    HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_RESET);
+    voltage = (spi_in*5*1000*41);
+    voltage = voltage >> 15;
+    sprintf(buf, "SPI IN:%d mv\r\n", voltage);
+    HAL_UART_Transmit_IT(&huart2, buf, strlen(buf));
+    if(voltage > VSB_UPPER_LIMIT || voltage < VSB_LOWER_LIMIT){
+      HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_SET);
+      HAL_UART_Transmit_IT(&huart2, buf, strlen(buf));
+
+    }
+    osDelay(20);
+  }
+}
+
+void HAL_UART_RxCpltCallback (UART_HandleTypeDef *huart){
+  HAL_UART_Transmit_IT(&huart2, "Got data\r\n", strlen("Got data\r\n"));
+  //BSSR_CAN_Tx("B");
+  send_to_can=1;
+}
+
+/**
+  * @brief EXTI line detection callbacks
+  * @param GPIO_Pin: Specifies the pins connected EXTI line
+  * @retval None
+  */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  char msg[50];
+	sprintf(msg, "EXTI Pin: %d\r\n", GPIO_Pin);
+//	HAL_UART_Transmit_IT(&huart2, msg, strlen(msg));
+
+  if(GPIO_Pin == GPIO_PIN_12)
+  {
+    // Trigger the led for now to show the triggering
+    //HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_SET);
+  } 
 }
 
 /* USER CODE END 4 */

@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include "BssrL4Can.h"
 
-#define UART_EN 0 // change to 1 to enable all uart in main.c 
+#define UART_EN 1 // change to 1 to enable all uart in main.c
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -72,6 +72,7 @@ ADC_ChannelConfTypeDef adc2_channel;
 int logReq = 0; // for uart log flag
 char msg[120];  // to save the uart messages
 
+char uart_input;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -503,13 +504,15 @@ void setADC2Channel(uint8_t channel)
 
 void StartAdcReadTask(void const *argument)
 {
+  /*
+    HAL_UART_Receive_IT(&huart2, &uart_input, 1);
     // HAL_ADC_Start_IT(&hadc1);
     // #if UART_EN == 0
-      HAL_UART_Transmit(&huart2, "\r\n\r\nStart ADC read\r\n", strlen("\r\n\r\nStart ADC read\r\n"), 100);
+      HAL_UART_Transmit_IT(&huart2, "\r\n\r\nStart ADC read\r\n", strlen("\r\n\r\nStart ADC read\r\n"));
     // #endif
     setADC2Channel(2);
     HAL_ADC_Start_IT(&hadc2);
-    adcWorking = 1;
+    adcWorking = 1;*/
 
     // char s[10] = "Alive\r\n";
     // HAL_ADC_Start(&hadc2);
@@ -568,6 +571,27 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     //sprintf(buffer, "ADC Value %d\r\n", adc2Val);
     //HAL_UART_Transmit(&huart2, buffer, strlen(buffer), 100);
     // HAL_ADC_Start_IT(&hadc2);
+}
+
+void HAL_UART_RxCpltCallback (UART_HandleTypeDef *huart){
+  HAL_UART_Transmit_IT(&huart2, "Got data\r\n", strlen("Got data\r\n"));
+  // int id = (BSSR_CAN_TX_DEVICE_ID << 3) + 2;
+  // uint8_t data[CAN_ITEM_SIZE];
+  // uint32_t mVolt, mTemp;
+  //   mVolt = 5000;
+  //   mTemp = 373000;
+
+  //   // change format of the data
+  //   for (int byteIndex = 0; byteIndex < CAN_ITEM_SIZE / 2; byteIndex ++ ){  
+  //     data[byteIndex] = mVolt & 0xFF;
+  //     mVolt >>= 8;
+
+  //     data[byteIndex + CAN_ITEM_SIZE / 2] = mTemp & 0xFF;
+  //     mTemp >>= 8;
+  //   }
+  // BSSR_CAN_Tx(id, data);
+  // HAL_UART_Transmit_IT(&huart2, "Sending test data\r\n", strlen("Sending test data\r\n"));
+  // HAL_UART_Receive_IT(&huart2, &uart_input, 1);
 }
 
 void voltageCheck(uint8_t voltageIndex) {
