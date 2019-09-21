@@ -96,7 +96,7 @@ static void rxTask(void* pv){
 	uint8_t bufCpy[RX_DMA_BUFFER_SIZE];
 #endif
 //	buart->head = buart->tail = buf;
-	HAL_UART_Receive_DMA(buart->huart, buf, RX_DMA_BUFFER_SIZE);
+	configASSERT(HAL_UART_Receive_DMA(buart->huart, buf, RX_DMA_BUFFER_SIZE) == HAL_OK);
 	portTickType tick = xTaskGetTickCount();
 	for(;;){
 		size_t bytesToRead;

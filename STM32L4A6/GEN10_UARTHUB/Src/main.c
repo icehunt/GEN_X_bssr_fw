@@ -148,12 +148,12 @@ int main(void)
   /* USER CODE BEGIN RTOS_THREADS */
 #endif
   /* add threads, ... */
-  xTaskCreate(uartRxParser, "UartRxParser1", 4096, (void*)0, 4, NULL);
-  xTaskCreate(uartRxParser, "UartRxParser2", 4096, (void*)1, 4, NULL);
-  xTaskCreate(uartRxParser, "UartRxParser3", 4096, (void*)2, 4, NULL);
-  xTaskCreate(uartRxParser, "UartRxParser4", 4096, (void*)3, 4, NULL);
-  xTaskCreate(uartRxParser, "UartRxParser5", 4096, (void*)4, 4, NULL);
-  xTaskCreate(uartRxParser, "UartRxParserLP", 4096, (void*)5, 4, NULL);
+  xTaskCreate(uartRxParser, "UartRxParser1", 1024, (void*)0, 4, NULL);
+  xTaskCreate(uartRxParser, "UartRxParser2", 1024, (void*)1, 4, NULL);
+  xTaskCreate(uartRxParser, "UartRxParser3", 1024, (void*)2, 4, NULL);
+  xTaskCreate(uartRxParser, "UartRxParser4", 1024, (void*)3, 4, NULL);
+  xTaskCreate(uartRxParser, "UartRxParser5", 1024, (void*)4, 4, NULL);
+  xTaskCreate(uartRxParser, "UartRxParserLP", 1024, (void*)5, 4, NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
