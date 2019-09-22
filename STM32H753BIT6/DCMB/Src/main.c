@@ -246,7 +246,79 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void StartSpiTask(void const * argument){
+	const SPI_HandleTypeDef* hspi = NULL;
+	const QueueHandle_t speedQ = NULL;
+	const GPIO_TypeDef* csGpio = NULL;
+	const uint32_t csPin = 0;
 
+	uint16_t dataOut, dataIn;
+
+	HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
+	osDelay(1);
+
+	// init display
+	dataOut = 0x0cff;
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
+	HAL_SPI_TransmitReceive(&hspi3, &dataOut, &dataIn, 1, 50);
+	HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
+	dataOut = 0x0b07;
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
+	HAL_SPI_TransmitReceive(&hspi3, &dataOut, &dataIn, 1, 50);
+	HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
+	dataOut = 0x09ff;
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
+	HAL_SPI_TransmitReceive(&hspi3, &dataOut, &dataIn, 1, 50);
+	HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
+	dataOut = 0x0a0f;
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
+	HAL_SPI_TransmitReceive(&hspi3, &dataOut, &dataIn, 1, 50);
+	HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
+
+	char buf[8];
+	int mw; //milliwatts
+	for(;;){
+		xQueueReceive(speedQ, &mw, portMAX_DELAY);
+		if(mw >= 0){
+			buf[7] = mw/10000000;
+			mv -= buf[7]*10000000;
+			buf[6] = mw/1000000;
+			mv -= buf[6]*1000000;
+			buf[5] = mw/100000;
+			mv -= buf[5]*100000;
+			buf[4] = mw/10000;
+			mv -= buf[4]*10000;
+			buf[3] = mw/1000 | 0x80;
+			mv -= buf[3]*1000;
+			buf[2] = mw/100;
+			mv -= buf[2]*100;
+			buf[1] = mw/10;
+			mv -= buf[1]*10;
+			buf[0] = mw;
+		}else{
+			buf[7] = 0x0a;
+			buf[6] = mw/10000000;
+			mv -= buf[6]*10000000;
+			buf[5] = mw/1000000;
+			mv -= buf[5]*1000000;
+			buf[4] = mw/100000;
+			mv -= buf[4]*100000;
+			buf[3] = mw/10000;
+			mv -= buf[3]*10000;
+			buf[2] = mw/1000 | 0x80;
+			mv -= buf[2]*1000;
+			buf[1] = mw/100;
+			mv -= buf[1]*100;
+			buf[0] = mw/10;
+		}
+		for(int i = 0; i < 8; i++){
+			dataOut = (i+1)<<4 | buf[i];
+			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
+			HAL_SPI_TransmitReceive(&hspi3, &dataOut, &dataIn, 1, 50);
+			HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
+		}
+	}
+}
 /* USER CODE END 4 */
 
 /**
