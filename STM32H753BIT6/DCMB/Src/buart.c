@@ -1,7 +1,7 @@
 #include "buart.h"
 #include "string.h"
 
-#define NUM_UARTS 3
+#define NUM_UARTS 4
 #define RX_CIRC_BUF_SIZE 2048
 #define RX_QUEUE_SIZE 64
 #define TX_QUEUE_SIZE 64
