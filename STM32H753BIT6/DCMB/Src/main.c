@@ -1704,14 +1704,14 @@ static void mc2StateTmr(TimerHandle_t xTimer){
 	int negativeTurn = 0;
 	int difference = 0;
 	static int outputVal = 0;
-	static char buf2[8];
-	int accValTemp = (int) accValue;
+	static char buf2[64];
+	int accValTemp = accValue == 255 ? currentValue : accValue;
 	if(!started){
 		started++;
 		currentValue = accValTemp;
 	} else{
 		positiveTurn = (currentValue + 63) % 128;
-		negativeTurn = (currentValue - 64) & 128;
+		negativeTurn = (currentValue - 64) % 128;
 		if(positiveTurn > currentValue){
 			if(accValTemp <= positiveTurn && accValTemp >= currentValue){
 				difference = accValTemp - currentValue;
@@ -1733,8 +1733,9 @@ static void mc2StateTmr(TimerHandle_t xTimer){
 				}
 			}
 		}
-		currentValue = accValTemp;
 		outputVal += difference;
+//		sprintf(buf2, "c=%d,w=%d,d=%d,o=%d\r\n", currentValue, accValTemp, difference, outputVal);
+		currentValue = accValTemp;
 		if(outputVal < 0){
 			outputVal = 0;
 		} else if (outputVal > 0xff){
@@ -1746,8 +1747,8 @@ static void mc2StateTmr(TimerHandle_t xTimer){
 		buf[1] = motorState << 4;
 		buf[1] |= fwdRevState << 3;
 		//buf[2] = accValue - acc0Val;
-		sprintf(buf2, "%d\r\n", outputVal);
-		HAL_UART_Transmit_IT(&huart2, buf2, strlen(buf2));
+
+//		HAL_UART_Transmit_IT(&huart2, buf2, strlen(buf2));
 		// TODO other buttons
 		B_tcpSend(btcp, buf, 8);
 	}
