@@ -205,7 +205,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   xTimerStart(xTimerCreate("lightsTimer", 666, pdTRUE, NULL, lightsTmr), 0);
-  xTimerStart(xTimerCreate("mc2StateTimer", 10, pdTRUE, NULL, mc2StateTmr), 0);
+  xTimerStart(xTimerCreate("mc2StateTimer", 20, pdTRUE, NULL, mc2StateTmr), 0);
   buart = B_uartstart(&huart4);
   spbBuart = B_uartstart(&huart3);
   swBuart = B_uartstart(&huart8);
@@ -1193,7 +1193,7 @@ static void MX_UART4_Init(void)
 
   /* USER CODE END UART4_Init 1 */
   huart4.Instance = UART4;
-  huart4.Init.BaudRate = 230400;
+  huart4.Init.BaudRate = 2000000;
   huart4.Init.WordLength = UART_WORDLENGTH_8B;
   huart4.Init.StopBits = UART_STOPBITS_1;
   huart4.Init.Parity = UART_PARITY_NONE;
@@ -1733,6 +1733,7 @@ static void mc2StateTmr(TimerHandle_t xTimer){
 				}
 			}
 		}
+		difference = difference < 0 ? -difference * difference : difference * difference;
 		outputVal += difference;
 //		sprintf(buf2, "c=%d,w=%d,d=%d,o=%d\r\n", currentValue, accValTemp, difference, outputVal);
 		currentValue = accValTemp;
@@ -1741,13 +1742,15 @@ static void mc2StateTmr(TimerHandle_t xTimer){
 		} else if (outputVal > 0xff){
 			outputVal = 0xff;
 		}
-//		if(brakeStatus){
-//			outputVal = 0;
-//		}
+		if(brakeStatus){
+			outputVal = 0;
+		}
+		if(!motorState){
+			outputVal = 0;
+		}
 		buf[1] = motorState << 4;
 		buf[1] |= fwdRevState << 3;
-		//buf[2] = accValue - acc0Val;
-
+		buf[2] = outputVal;
 //		HAL_UART_Transmit_IT(&huart2, buf2, strlen(buf2));
 		// TODO other buttons
 		B_tcpSend(btcp, buf, 8);
@@ -1814,7 +1817,7 @@ void array_check(uint8_t data){
 		} else if ((fwdRevPressTime + 1000 < xTaskGetTickCount()) && fwdRevPressed == 0){
 			fwdRevPressTime = 0;
 			fwdRevPressed = 0;
-			fwdRevState ^= 0;
+			fwdRevState ^= 1;
 		}
 	} else {
 		fwdRevPressTime = 0;
