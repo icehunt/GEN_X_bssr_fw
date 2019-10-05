@@ -1,6 +1,8 @@
 #include "main.h"
 #include "cmsis_os.h"
 
+#ifndef __BUART_H
+#define __BUART_H
 typedef struct{
 	uint8_t* buf;
 	size_t len;
@@ -28,3 +30,4 @@ void B_uartDoneRead(B_bufQEntry_t* e);
 
 void HAL_UART_TxCpltCallback (UART_HandleTypeDef * huart);
 void HAL_UART_RxCpltCallback (UART_HandleTypeDef * huart);
+#endif

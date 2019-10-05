@@ -54,6 +54,7 @@ int B_uartstart(UART_HandleTypeDef* huart){
             buarts[i] = pvPortMalloc(sizeof(B_uartHandle_t));
             buart = buarts[i];
             huarts[i] = huart;
+            buart->huart = huart;
             break;
         }
     }
@@ -61,8 +62,8 @@ int B_uartstart(UART_HandleTypeDef* huart){
 	buart->txQ = xQueueCreate(TX_QUEUE_SIZE, sizeof(B_bufQEntry_t));
 	// buart->rxBuf = pvPortMalloc(RX_CIRC_BUF_SIZE); // done in task
 	buart->rxQ = xQueueCreate(RX_QUEUE_SIZE, sizeof(B_bufQEntry_t));
-	xTaskCreate(txTask, "uartTxTask", TRX_TASK_STACK_SIZE, buart, TX_TASK_PRIORITY &buart->txTask);
-	xTaskCreate(txTask, "uartTxTask", TRX_TASK_STACK_SIZE, buart, RX_TASK_PRIORITY &buart->trTask);
+	xTaskCreate(txTask, "uartTxTask", TRX_TASK_STACK_SIZE, buart, TX_TASK_PRIORITY, &buart->txTask);
+	xTaskCreate(rxTask, "uartTxTask", TRX_TASK_STACK_SIZE, buart, RX_TASK_PRIORITY, &buart->rxTask);
 	buart->topFlag = buart->head = buart->tail = 0;
 }
 
@@ -81,7 +82,7 @@ B_bufQEntry_t* B_uartRead(B_uartHandle_t* buart){
 	return e;
 }
 
-void B_uartDoneRead(B_uartHandle_t* e){
+void B_uartDoneRead(B_bufQEntry_t* e){
 	vPortFree(e->buf);
 	vPortFree(e);
 }
@@ -101,6 +102,7 @@ static void txTask(void* pv){
 		xQueueReceive(buart->txQ, &e, portMAX_DELAY);
 		HAL_UART_Transmit_DMA(buart->huart, e.buf, e.len);
 		xSemaphoreTake(buart->txSem, portMAX_DELAY);
+		vPortFree(e.buf);
 	}
 }
 
@@ -119,17 +121,20 @@ static void rxTask(void* pv){
 		vPortEnterCritical();
 		// no flags will update in this region. Capture head value at beginning.
 		// 0 to MAX-1, cuz CNDTR is MAX to 1 in circular mode
-		buart->head = RX_DMA_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(buart->huart->hdmarx);
+		buart->head = RX_CIRC_BUF_SIZE - __HAL_DMA_GET_COUNTER(buart->huart->hdmarx);
 		if(buart->topFlag){
-			e.len = RX_DMA_BUFFER_SIZE - buart->tail;
+			if(buart->head > buart->tail) buart->tail = buart->head;
+			e.len = RX_CIRC_BUF_SIZE - buart->tail;
 			buart->topFlag = 0;
 		}else if(buart->head > buart->tail){
 			e.len = buart->head - buart->tail;
 		}
 		vPortExitCritical();
 		if(e.len){
-			e.buf = pvPortMalloc(bytesToRead);
-			memcpy(buart->rxBuf+buart->tail, buf, bytesToRead);
+			e.buf = pvPortMalloc(e.len);
+			memcpy(e.buf, buart->rxBuf+buart->tail, e.len);
+			buart->tail += e.len;
+			buart->tail %= RX_CIRC_BUF_SIZE;
 			int sent = xQueueSendToBack(buart->rxQ, &e, 0);
 			if(sent != pdTRUE) processCriticalFrame(&e);
 		}
@@ -153,18 +158,18 @@ static void processCriticalFrame(B_bufQEntry_t* e){
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef * huart){
 	for(size_t i = 0; i < NUM_UARTS; i++){ //TODO linkedList
-		if(huart == huartTable[i]){
-			xSemaphoreGiveFromISR(buartTable[i]->txSem, NULL);
+		if(huart == huarts[i]){
+			xSemaphoreGiveFromISR(buarts[i]->txSem, NULL);
 			return;
 		}
 	}
-	configASSERT(NULL);
+	//configASSERT(NULL);
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart){
 	for(size_t i = 0; i < NUM_UARTS; i++){ //TODO linkedList
-		if(huart == huartTable[i]){
-			buartTable[i]->topFlag = 1;
+		if(huart == huarts[i]){
+			buarts[i]->topFlag = 1;
 			return;
 		}
 	}

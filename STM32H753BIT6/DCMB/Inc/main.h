@@ -29,7 +29,6 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32h7xx_hal.h"
-#include "stm32h7xx_hal.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -51,6 +50,10 @@ extern "C" {
 
 /* USER CODE END EM */
 
+void HAL_HRTIM_MspPostInit(HRTIM_HandleTypeDef *hhrtim);
+
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -66,6 +69,7 @@ void Error_Handler(void);
 #define GPIO_IN10_GPIO_Port GPIOD
 #define GPIO_IN10_EXTI_IRQn EXTI15_10_IRQn
 /* USER CODE BEGIN Private defines */
+#define TCP_ID 0x04
 
 /* USER CODE END Private defines */
 
