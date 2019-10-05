@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=/Users/devops/Documents/GEN_X_bssr_fw/STM32H753BIT6/DCMB/Inc
+HeaderPath=/Users/jamesliu/Development/STM32/GEN_X_bssr_fw/STM32H753BIT6/DCMB/Inc
 HeaderFiles=gpio.h;adc.h;crc.h;debug.h;dma.h;fmc.h;FreeRTOSConfig.h;hrtim.h;lptim.h;rtc.h;sdmmc.h;spi.h;tim.h;usart.h;usb_otg.h;stm32h7xx_it.h;stm32h7xx_hal_conf.h;main.h;
-SourcePath=/Users/devops/Documents/GEN_X_bssr_fw/STM32H753BIT6/DCMB/Src
+SourcePath=/Users/jamesliu/Development/STM32/GEN_X_bssr_fw/STM32H753BIT6/DCMB/Src
 SourceFiles=gpio.c;adc.c;crc.c;debug.c;dma.c;fmc.c;freertos.c;hrtim.c;lptim.c;rtc.c;sdmmc.c;spi.c;tim.c;usart.c;usb_otg.c;stm32h7xx_it.c;stm32h7xx_hal_msp.c;stm32h7xx_hal_timebase_tim.c;main.c;
 
 [PreviousLibFiles]
