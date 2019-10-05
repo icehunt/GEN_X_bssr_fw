@@ -19,6 +19,8 @@ uint32_t dcPin = GPIO_PIN_2;
 GPIO_TypeDef* csPort = GPIOI; //CS0 154 I0
 uint32_t csPin = GPIO_PIN_0;
 
+extern const uint8_t kaboom[8192];
+
 void SSD_init(){
 	txCpltSem = xSemaphoreCreateBinary();
 
@@ -35,7 +37,8 @@ void SSD_init(){
 	setDC(0);
 	spiSendByte(0xb3); // oscillator stuff str8 from datasheet
 	setDC(1);
-	spiSendByte(0x91);
+//	spiSendByte(0x91); // default good boy frequency
+	spiSendByte(0xf1); // MAXXXED OUT LET'S GO (but still dividing by 2 for DFF stability)
 
 	setDC(0);
 	spiSendByte(0xca); // mux ratio 1/64 (64 rows)
@@ -111,6 +114,15 @@ void SSD_init(){
 	spiSendByte(0xaf); // sleep mode off (disp on)
 
 	setCS(1);
+
+	lv_area_t area;
+	area.x1 = 0;
+	area.x2 = 255;
+	area.y1 = 0;
+	area.y2 = 63;
+	SSD_writeRegion(&area, kaboom);
+
+	osDelay(2000);
 }
 
 void SSD_writeRegion(lv_area_t * area, uint8_t* buf){
@@ -126,16 +138,17 @@ void SSD_writeRegion(lv_area_t * area, uint8_t* buf){
 	setDC(1);
 	spiSendByte(28+area->x1/4); // min 28
 	setDC(1);
-	spiSendByte(28+(area->x2+1)/4); // max 91
+	spiSendByte(28+(area->x2)/4); // max 91
 	setDC(0);
 	spiSendByte(0x5c); // write RAM
 	setDC(1);
 	size_t dx = area->x2-area->x1+1;
 	size_t dy = area->y2-area->y1+1;
 	size_t len = dx*dy/2;
-	for(int i=0; i<len; i++){
-		spiSendByte(*buf++);
-	}
+//	for(int i=0; i<len; i++){
+//		spiSendByte(*buf++);
+//	}
+	spiSendBuf(buf, len);
 	setCS(1);
 }
 
@@ -180,26 +193,34 @@ void SSD_test(){
 
 	osDelay(1);
 
-	setCS(0);
-	setDC(0);
-	spiSendByte(0x75); // set row address
-	setDC(1);
-	spiSendByte(4);
-	setDC(1);
-	spiSendByte(16);
-	setDC(0);
-	spiSendByte(0x15); // set col address
-	setDC(1);
-	spiSendByte(28);
-	setDC(1);
-	spiSendByte(29);
-	setDC(0);
-	spiSendByte(0x5c);
-	setDC(1);
+//	setCS(0);
+//	setDC(0);
+//	spiSendByte(0x75); // set row address
+//	setDC(1);
+//	spiSendByte(4);
+//	setDC(1);
+//	spiSendByte(16);
+//	setDC(0);
+//	spiSendByte(0x15); // set col address
+//	setDC(1);
+//	spiSendByte(28);
+//	setDC(1);
+//	spiSendByte(29);
+//	setDC(0);
+//	spiSendByte(0x5c);
+//	setDC(1);
 //	for(int i=0; i<52; i++){
 //		spiSendByte(~A[i]);
 //	}
-	spiSendBuf(A, 52);
+//
+//	spiSendBuf(A, 52);
+	lv_area_t area;
+	area.x1 = 0;
+	area.x2 = 7;
+	area.y1 = 4;
+	area.y2 = 16;
+	SSD_writeRegion(&area, A);
+	setCS(0);
 	setDC(0);
 	spiSendByte(0x15); // set col address
 	setDC(1);

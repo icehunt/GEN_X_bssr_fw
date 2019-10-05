@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=/Users/jamesliu/Development/STM32CubeIDE/GEN10_lvgl_test/Inc
+HeaderPath=/Users/jamesliu/Development/STM32/GEN_X_bssr_fw/STM32H753BIT6/GEN10_lvgl_test/Inc
 HeaderFiles=stm32h7xx_it.h;stm32h7xx_hal_conf.h;main.h;gpio.h;adc.h;crc.h;dma.h;fmc.h;FreeRTOSConfig.h;hrtim.h;lptim.h;rtc.h;sdmmc.h;spi.h;tim.h;usart.h;usb_otg.h;wwdg.h;
-SourcePath=/Users/jamesliu/Development/STM32CubeIDE/GEN10_lvgl_test/Src
+SourcePath=/Users/jamesliu/Development/STM32/GEN_X_bssr_fw/STM32H753BIT6/GEN10_lvgl_test/Src
 SourceFiles=stm32h7xx_it.c;stm32h7xx_hal_msp.c;main.c;gpio.c;adc.c;crc.c;dma.c;fmc.c;freertos.c;hrtim.c;lptim.c;rtc.c;sdmmc.c;spi.c;tim.c;usart.c;usb_otg.c;wwdg.c;stm32h7xx_hal_timebase_tim.c;
 
 [PreviousLibFiles]
