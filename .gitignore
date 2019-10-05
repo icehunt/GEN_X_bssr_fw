@@ -59,3 +59,5 @@ Debug
 # MACOS shit
 .DS_Store
 **.bak
+
+STM32H753BIT6/DCMB/.settings/language.settings.xml
