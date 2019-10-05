@@ -329,41 +329,12 @@ void my_rounder_cb(lv_disp_drv_t * disp_drv, lv_area_t * area){
 }
 
 void my_disp_flush(lv_disp_t * disp, const lv_area_t * area, lv_color_t * color_p){
-//	uint32_t dx = area->x2-area->x1+1;
-//	uint32_t dy = area->y2-area->y1+1;
-//	uint32_t len = dx*dy;
-//	uint8_t* buf = pvPortMalloc(len);
-//	uint8_t* bufp = buf;
-//	uint8_t over = dx%4;
-//	uint32_t realdx = over ? dx+(4-over) : dx;
-//	uint32_t safedx = dx-over;
-//	for(size_t i = 0; i < dy; i++){
-//		for(size_t j = 0; j < safedx; j+=4){
-//			*bufp = color_p++&0xf0;
-//			*bufp++ |= (color_p++&0xf0)>>4;
-//			*bufp = color_p++&0xf0;
-//			*bufp++ |= (color_p++&0xf0)>>4;
-//		}
-//		if(over){
-//			if(over == 3){
-//				*bufp = color_p++&0xf0;
-//				*bufp++ |= (color_p++&0xf0)>>4;
-//				*bufp++ = color_p++&0xf0;
-//			}else if(over == 2){
-//				*bufp = color_p++&0xf0;
-//				*bufp++ |= (color_p++&0xf0)>>4;
-//				*bufp++ = 0x00;
-//			}else{
-//				*bufp++ = color_p++&0xf0;
-//				*bufp++ = 0x00;
-//			}
-//		}
-//	}
 	uint32_t dx = area->x2-area->x1+1;
 	uint32_t dy = area->y2-area->y1+1;
 	uint32_t len = dx*dy;
 	uint8_t* buf = pvPortMalloc(len/2);
 	uint8_t* bufp = buf;
+#if LV_COLOR_DEPTH == 1
 	for(size_t i = 0; i < dy; i++){
 		for(size_t j = 0; j < dx; j+=4){
 			*bufp = color_p++->full&0xf0;
@@ -372,13 +343,18 @@ void my_disp_flush(lv_disp_t * disp, const lv_area_t * area, lv_color_t * color_
 			*bufp++ |= (color_p++->full&0xf0)>>4;
 		}
 	}
+#else if LV_COLOR_DEPTH == 16
+	for(size_t i = 0; i < dy; i++){
+		for(size_t j = 0; j < dx; j+=4){
+			*bufp = color_p++->ch.green>>2<<4;
+			*bufp++ |= color_p++->ch.green>>2;
+			*bufp = color_p++->ch.green>>2<<4;
+			*bufp++ |= color_p++->ch.green>>2;
+		}
+	}
+#endif
 	SSD_writeRegion(area, buf);
-//	for(y = area->y1; y <= area->y2; y++) {
-//		for(x = area->x1; x <= area->x2; x++) {
-//			set_pixel(x, y, *color_p);  /* Put a pixel to the display.*/
-//			color_p++;
-//		}
-//	}
+	vPortFree(buf);
 	lv_disp_flush_ready(disp);         /* Indicate you are ready with the flushing*/
 }
 

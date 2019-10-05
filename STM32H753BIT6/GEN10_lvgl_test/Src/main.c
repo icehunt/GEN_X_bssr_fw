@@ -186,7 +186,7 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
-  xTimerCreate("", 1, pdTRUE, NULL, lvglTick);
+  xTimerStart(xTimerCreate("", 1, pdTRUE, NULL, lvglTick),0);
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -1871,7 +1871,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void lvglTick(void* id){
-//	lv_tick_inc(1);
+	lv_tick_inc(1);
 }
 
 /* USER CODE END 4 */
@@ -1893,33 +1893,33 @@ void StartDefaultTask(void const * argument)
 
 
 	SSD_init();
-	SSD_test();
-//  lv_init();
-//  lv_disp_buf_t disp_buf;
-//  lv_color_t* buf = pvPortMalloc((LV_HOR_RES_MAX * LV_VER_RES_MAX) * sizeof(lv_color_t));                     /*Declare a buffer for 10 lines*/
-//  lv_disp_buf_init(&disp_buf, buf, NULL, LV_HOR_RES_MAX * LV_VER_RES_MAX);    /*Initialize the display buffer*/
-//  lv_disp_drv_t disp_drv;               /*Descriptor of a display driver*/
-//  lv_disp_drv_init(&disp_drv);          /*Basic initialization*/
-//  disp_drv.flush_cb = my_disp_flush;    /*Set your driver function*/
-//  disp_drv.buffer = &disp_buf;          /*Assign the buffer to the display*/
-//  lv_disp_drv_register(&disp_drv);      /*Finally register the driver*/
-////  lv_indev_drv_init(&indev_drv);             /*Descriptor of a input device driver*/
-////  indev_drv.type = LV_INDEV_TYPE_POINTER;    /*Touch pad is a pointer-like device*/
-////  indev_drv.read_cb = my_touchpad_read;      /*Set your driver function*/
-////  lv_indev_drv_register(&indev_drv);         /*Finally register the driver*/
-//
-//  lv_obj_t * btn = lv_btn_create(lv_scr_act(), NULL);     /*Add a button the current screen*/
-//  lv_obj_set_pos(btn, 10, 10);                            /*Set its position*/
-//  lv_obj_set_size(btn, 100, 50);                          /*Set its size*/
-////  lv_obj_set_event_cb(btn, btn_event_cb);                 /*Assign a callback to the button*/
-//
-//  lv_obj_t * label = lv_label_create(btn, NULL);          /*Add a label to the button*/
-//  lv_label_set_text(label, "Button");                     /*Set the labels text*/
+//	SSD_test();
+  lv_init();
+  lv_disp_buf_t disp_buf;
+  lv_color_t* buf = pvPortMalloc((LV_HOR_RES_MAX * LV_VER_RES_MAX) * sizeof(lv_color_t));                     /*Declare a buffer for 10 lines*/
+  lv_disp_buf_init(&disp_buf, buf, NULL, LV_HOR_RES_MAX * LV_VER_RES_MAX);    /*Initialize the display buffer*/
+  lv_disp_drv_t disp_drv;               /*Descriptor of a display driver*/
+  lv_disp_drv_init(&disp_drv);          /*Basic initialization*/
+  disp_drv.flush_cb = my_disp_flush;    /*Set your driver function*/
+  disp_drv.buffer = &disp_buf;          /*Assign the buffer to the display*/
+  lv_disp_drv_register(&disp_drv);      /*Finally register the driver*/
+//  lv_indev_drv_init(&indev_drv);             /*Descriptor of a input device driver*/
+//  indev_drv.type = LV_INDEV_TYPE_POINTER;    /*Touch pad is a pointer-like device*/
+//  indev_drv.read_cb = my_touchpad_read;      /*Set your driver function*/
+//  lv_indev_drv_register(&indev_drv);         /*Finally register the driver*/
+
+  lv_obj_t * btn = lv_btn_create(lv_scr_act(), NULL);     /*Add a button the current screen*/
+  lv_obj_set_pos(btn, 10, 10);                            /*Set its position*/
+  lv_obj_set_size(btn, 100, 50);                          /*Set its size*/
+//  lv_obj_set_event_cb(btn, btn_event_cb);                 /*Assign a callback to the button*/
+
+  lv_obj_t * label = lv_label_create(btn, NULL);          /*Add a label to the button*/
+  lv_label_set_text(label, "Button");                     /*Set the labels text*/
   for(;;)
   {
 
-//	lv_task_handler();
-//	osDelay(5);
+	lv_task_handler();
+	osDelay(5);
   }
   /* USER CODE END 5 */ 
 }
