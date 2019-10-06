@@ -12,8 +12,10 @@ static void setDC(uint8_t x);
 static void spiSendByte(uint8_t x);
 static void spiSendBuf(uint8_t* buf, size_t len);
 extern SPI_HandleTypeDef hspi2;
+extern UART_HandleTypeDef huart2;
 static SPI_HandleTypeDef* hspi = &hspi2; //SPI2
 static SemaphoreHandle_t txCpltSem;
+static SemaphoreHandle_t txCpltSemHack;
 GPIO_TypeDef* dcPort = GPIOI; //MISO 156 I2
 uint32_t dcPin = GPIO_PIN_2;
 GPIO_TypeDef* csPort = GPIOI; //CS0 154 I0
@@ -23,6 +25,7 @@ extern const uint8_t kaboom[8192];
 
 void SSD_init(){
 	txCpltSem = xSemaphoreCreateBinary();
+	xSemaphoreGive(txCpltSem);
 
 	setCS(0);
 
@@ -125,6 +128,22 @@ void SSD_init(){
 	osDelay(2000);
 }
 
+void SSD_init_hack(){
+	txCpltSemHack = xSemaphoreCreateBinary();
+	xSemaphoreGive(txCpltSemHack);
+
+	osDelay(2); // let arduino start up
+
+	lv_area_t area;
+	area.x1 = 0;
+	area.x2 = 255;
+	area.y1 = 0;
+	area.y2 = 63;
+	SSD_writeRegion_hack(&area, kaboom);
+
+	osDelay(2000);
+}
+
 void SSD_writeRegion(lv_area_t * area, uint8_t* buf){
 	setCS(0);
 	setDC(0);
@@ -150,6 +169,20 @@ void SSD_writeRegion(lv_area_t * area, uint8_t* buf){
 //	}
 	spiSendBuf(buf, len);
 	setCS(1);
+}
+
+void SSD_writeRegion_hack(lv_area_t * area, uint8_t* buf){
+	static uint8_t* dmabuf = NULL;
+	vPortFree(dmabuf);
+	size_t dx = area->x2-area->x1+1;
+	size_t dy = area->y2-area->y1+1;
+	size_t len = dx*dy/2;
+	uint8_t buf2[5] = {0xa5, 0+area->y1, 0+area->y2, 28+area->x1/4, 28+(area->x2)/4};
+	xSemaphoreTake(txCpltSemHack, portMAX_DELAY);
+	HAL_UART_Transmit(&huart2, buf2, 5, 10);
+	dmabuf = pvPortMalloc(len);
+	memcpy(dmabuf, buf, len);
+	HAL_UART_Transmit_DMA(&huart2, dmabuf, len);
 }
 
 void SSD_test(){
@@ -358,6 +391,36 @@ void my_disp_flush(lv_disp_drv_t* disp_drv, const lv_area_t* area, lv_color_t* c
 	lv_disp_flush_ready(disp_drv);         /* Indicate you are ready with the flushing*/
 }
 
+void my_disp_flush_hack(lv_disp_drv_t* disp_drv, const lv_area_t* area, lv_color_t* color_p){
+	uint32_t dx = area->x2-area->x1+1;
+	uint32_t dy = area->y2-area->y1+1;
+	uint32_t len = dx*dy;
+	uint8_t* buf = pvPortMalloc(len/2);
+	uint8_t* bufp = buf;
+#if LV_COLOR_DEPTH == 1
+	for(size_t i = 0; i < dy; i++){
+		for(size_t j = 0; j < dx; j+=4){
+			*bufp = color_p++->full&0xf0;
+			*bufp++ |= (color_p++->full&0xf0)>>4;
+			*bufp = color_p++->full&0xf0;
+			*bufp++ |= (color_p++->full&0xf0)>>4;
+		}
+	}
+#else if LV_COLOR_DEPTH == 16
+	for(size_t i = 0; i < dy; i++){
+		for(size_t j = 0; j < dx; j+=4){
+			*bufp = color_p++->ch.green>>2<<4;
+			*bufp++ |= color_p++->ch.green>>2;
+			*bufp = color_p++->ch.green>>2<<4;
+			*bufp++ |= color_p++->ch.green>>2;
+		}
+	}
+#endif
+	SSD_writeRegion_hack(area, buf);
+	vPortFree(buf);
+	lv_disp_flush_ready(disp_drv);         /* Indicate you are ready with the flushing*/
+}
+
 void SSD_clearDisplay(){
 	setCS(0);
 	setDC(0);
@@ -399,12 +462,18 @@ static void spiSendByte(uint8_t x){
 }
 
 static void spiSendBuf(uint8_t* buf, size_t len){
-	HAL_SPI_Transmit_DMA(hspi, buf, len);
 	xSemaphoreTake(txCpltSem, portMAX_DELAY);
+	HAL_SPI_Transmit_DMA(hspi, buf, len);
 }
 
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){ //im lazy
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
 	if(hspi == &hspi2){
 		xSemaphoreGiveFromISR(txCpltSem, NULL);
+	}
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
+	if(huart == &huart2){
+		xSemaphoreGiveFromISR(txCpltSemHack, NULL);
 	}
 }

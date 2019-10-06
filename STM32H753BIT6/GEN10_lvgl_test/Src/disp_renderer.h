@@ -24,6 +24,7 @@ void disp_setPPTMBBusCurrent(uint32_t ma);
 void disp_setDCMBLeftLightState(uint32_t on);
 void disp_setDCMBRightLightState(uint32_t on);
 void disp_setDCMBStopLightState(uint32_t on);
+void disp_setDCMBHazardLightState(uint32_t on);
 void disp_setDCMBIgnitionState(uint32_t on);
 void disp_setDCMBArrayIgnitionState(uint32_t on);
 void disp_setDCMBMotIgnitionState(uint32_t on);

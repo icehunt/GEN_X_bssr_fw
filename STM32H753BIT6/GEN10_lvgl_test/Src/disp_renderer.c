@@ -26,7 +26,12 @@ static const char* BMS_ALERT_MSG_CELL_OC = "CELL OVERCURRENT!!! #%d @ %d.%dA";
 static const char* BMS_ALERT_MSG_CELL_OT = "CELL OVERTEMPERATURE!!! #%d @ %d.%d°C";
 static const char* BMS_ALERT_MSG_CELL_UT = "CELL UNDERTEMPERATURE!!! #%d @ %d.%d°C";
 static const char* DCMB_ACC_POS_MSG = "ACC = %d/255";
+static const char* BBMB_BUS_PWR_MSG = "%s %3d.%02d#999999 V, %c#%2d.%02d#999999 A, %c#%5d#999999 W OUT";
 LV_IMG_DECLARE(DISP_main_background);
+LV_IMG_DECLARE(DISP_left_arrow);
+LV_IMG_DECLARE(DISP_right_arrow);
+LV_IMG_DECLARE(DISP_stop_sign);
+LV_IMG_DECLARE(DISP_triangle_sign);
 
 //########  ######## ########
 //##     ## ##       ##     ##
@@ -48,6 +53,7 @@ static void createObjects();
 //##    ##   ## ##
 // ######     ###
 
+static SemaphoreHandle_t dispMtx;
 static uint32_t battV = 0;
 static uint32_t battA = 0;
 static uint32_t arrayV = 0;
@@ -68,7 +74,9 @@ static lv_style_t bigNumStl; // Big Number
 static lv_style_t targetSpeedStl; // Target Speed
 static lv_style_t bigUnitStl; // Big Number's Units
 static lv_style_t scrDivStl; // Screen Divider
-static lv_style_t smlTxtStl; // Small Number
+static lv_style_t smlTxtStl; // Small Text
+static lv_style_t pwrTxtStl; // Main Power Style
+static lv_style_t gearTxtStl; // Gear Text Style
 
 static void initStyles(){
 	// Screen Background
@@ -88,7 +96,7 @@ static void initStyles(){
 	lv_style_copy(&bigUnitStl, &lv_style_transp_tight);
 	bigUnitStl.body.main_color = lv_color_hex3(0x000);
 	bigUnitStl.text.color = lv_color_hex3(0x090);
-	bigUnitStl.text.font = &Hack_20_2FA1F;
+	bigUnitStl.text.font = &Hack_16_2FA1F;
 	// Screen Divider
 	lv_style_copy(&scrDivStl, &lv_style_transp_tight);
 	scrDivStl.body.main_color = lv_color_hex3(0x0C0);
@@ -97,6 +105,13 @@ static void initStyles(){
 	// Small Text
 	lv_style_copy(&smlTxtStl, &bigNumStl);
 	smlTxtStl.text.font = &Hack_8_2FA1F;
+	// Main Power Style
+	lv_style_copy(&pwrTxtStl, &bigNumStl);
+	pwrTxtStl.text.font = &Hack_12_2FA1F;
+	// Gear Text Style
+	lv_style_copy(&gearTxtStl, &bigNumStl);
+	gearTxtStl.text.font = &Hack_24_2FA1F;
+	gearTxtStl.text.color = lv_color_hex3(0x0C0);
 }
 
 // #######  ########        ## ########  ######  ########  ######
@@ -115,6 +130,11 @@ static lv_obj_t* battPwrLabel;
 static lv_obj_t* arrayPwrLabel;
 static lv_obj_t* bmsAlertMessageLabel;
 static lv_obj_t* accPositionObj;
+static lv_obj_t* gearTxtLabel;
+static lv_obj_t* leftArrowImg;
+static lv_obj_t* rightArrowImg;
+static lv_obj_t* stopSignImg;
+static lv_obj_t* triangleSignImg;
 
 static void createObjects(){
 	lv_obj_set_style(lv_scr_act(), &screenStl);
@@ -127,49 +147,69 @@ static void createObjects(){
 	lv_label_set_text(bigSpeedLabel, "120");
 	lv_label_set_style(bigSpeedLabel, LV_LABEL_STYLE_MAIN, &bigNumStl);
 	lv_label_set_align(bigSpeedLabel, LV_LABEL_ALIGN_LEFT);
-//	lv_obj_set_pos(bigSpeedLabel, -4, 8);
-	lv_obj_set_pos(bigSpeedLabel, 0, 8);
+	lv_obj_set_pos(bigSpeedLabel, -4, 6);
 
 	bigUnitLabel = lv_label_create(lv_scr_act(), NULL);
-	lv_label_set_text(bigUnitLabel, "π•m•s⁻¹");
+	lv_label_set_text(bigUnitLabel, "kmph");
 	lv_label_set_style(bigUnitLabel, LV_LABEL_STYLE_MAIN, &bigUnitStl);
 	lv_label_set_align(bigUnitLabel, LV_LABEL_ALIGN_LEFT);
-	lv_obj_set_pos(bigSpeedLabel, 54, 23);
+	lv_obj_set_pos(bigUnitLabel, 54, 22);
 
 	targetSpeedLabel = lv_label_create(lv_scr_act(), NULL);
-	lv_label_set_text(targetSpeedLabel, "069");
+	lv_label_set_text(targetSpeedLabel, "000");
 	lv_label_set_style(targetSpeedLabel, LV_LABEL_STYLE_MAIN, &targetSpeedStl);
 	lv_label_set_align(targetSpeedLabel, LV_LABEL_ALIGN_LEFT);
-//	lv_obj_set_pos(targetSpeedLabel, 73, -2);
-	lv_obj_set_pos(targetSpeedLabel, 73, 0);
+	lv_obj_set_pos(targetSpeedLabel, 73, -3);
 
 	battPwrLabel = lv_label_create(lv_scr_act(), NULL);
-	lv_label_set_text(battPwrLabel, "● 120.64V -03.45A -00416W IN ");
+	lv_label_set_text(battPwrLabel, "● 120.64#999999 V, -#03.45#999999 A, -#00416#999999 W IN ");
 	lv_label_set_recolor(battPwrLabel, true);
-	lv_label_set_style(battPwrLabel, LV_LABEL_STYLE_MAIN, &bigUnitStl);
+	lv_label_set_style(battPwrLabel, LV_LABEL_STYLE_MAIN, &pwrTxtStl);
 	lv_label_set_align(battPwrLabel, LV_LABEL_ALIGN_LEFT);
-	lv_obj_set_pos(battPwrLabel, 37, 41);
+	lv_obj_set_pos(battPwrLabel, 37, 40);
 
 	arrayPwrLabel = lv_label_create(lv_scr_act(), NULL);
-	lv_label_set_text(arrayPwrLabel, "○ 120.32V +02.34A +00281W OUT");
+	lv_label_set_text(arrayPwrLabel, "○   0.00#999999 V, +# 0.00#999999 A, +#    0#999999 W OUT");
 	lv_label_set_recolor(arrayPwrLabel, true);
-	lv_label_set_style(arrayPwrLabel, LV_LABEL_STYLE_MAIN, &bigUnitStl);
+	lv_label_set_style(arrayPwrLabel, LV_LABEL_STYLE_MAIN, &pwrTxtStl);
 	lv_label_set_align(arrayPwrLabel, LV_LABEL_ALIGN_LEFT);
-	lv_obj_set_pos(arrayPwrLabel, 37, 52);
+	lv_obj_set_pos(arrayPwrLabel, 37, 51);
 
 	bmsAlertMessageLabel = lv_label_create(lv_scr_act(), NULL);
 	lv_label_set_text(bmsAlertMessageLabel, "CELL UNDERTEMPERATURE!!! #12 @ 69.69°C");
 	lv_label_set_style(bmsAlertMessageLabel, LV_LABEL_STYLE_MAIN, &smlTxtStl);
 	lv_label_set_align(bmsAlertMessageLabel, LV_LABEL_ALIGN_LEFT);
 	lv_label_set_long_mode(bmsAlertMessageLabel, LV_LABEL_LONG_SROLL_CIRC);
-	lv_obj_set_pos(bmsAlertMessageLabel, 133, 31);
+	lv_obj_set_pos(bmsAlertMessageLabel, 133, 30);
 	lv_obj_set_width(bmsAlertMessageLabel, 122);
 
-	accPositionObj = lv_label_create(lv_scr_act(), NULL);
-	lv_label_set_text(accPositionObj, "ACC=NaN/255");
-	lv_label_set_style(accPositionObj, LV_LABEL_STYLE_MAIN, &targetSpeedStl);
-	lv_label_set_align(accPositionObj, LV_LABEL_ALIGN_LEFT);
-	lv_obj_set_pos(accPositionObj, 128, 0);
+	gearTxtLabel = lv_label_create(lv_scr_act(), NULL);
+	lv_label_set_text(gearTxtLabel, "P");
+	lv_label_set_style(gearTxtLabel, LV_LABEL_STYLE_MAIN, &gearTxtStl);
+	lv_label_set_align(gearTxtLabel, LV_LABEL_ALIGN_LEFT);
+	lv_obj_set_pos(gearTxtLabel, 132, 0);
+
+	leftArrowImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(leftArrowImg, &DISP_left_arrow);
+	lv_obj_set_pos(leftArrowImg, 149, 6);
+
+	rightArrowImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(rightArrowImg, &DISP_right_arrow);
+	lv_obj_set_pos(rightArrowImg, 191, 6);
+
+	stopSignImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(stopSignImg, &DISP_stop_sign);
+	lv_obj_set_pos(stopSignImg, 111, 13);
+
+	triangleSignImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(triangleSignImg, &DISP_triangle_sign);
+	lv_obj_set_pos(triangleSignImg, 171, 6);
+
+//	accPositionObj = lv_label_create(lv_scr_act(), NULL);
+//	lv_label_set_text(accPositionObj, "ACC=NaN/255");
+//	lv_label_set_style(accPositionObj, LV_LABEL_STYLE_MAIN, &targetSpeedStl);
+//	lv_label_set_align(accPositionObj, LV_LABEL_ALIGN_LEFT);
+//	lv_obj_set_pos(accPositionObj, 128, 0);
 }
 
 //######## ##     ## ##    ##  ######
@@ -180,9 +220,48 @@ static void createObjects(){
 //##       ##     ## ##   ### ##    ##
 //##        #######  ##    ##  ######
 
+static void testTask(void* pv){
+	osDelay(1000);
+	for(int i=0; i<40; i++){
+		disp_setMCMBPulseFreq(i);
+		osDelay(50);
+	}
+	for(int i=0; i<40; i++){
+		disp_setBBMBBusVoltage(i*3000);
+		osDelay(50);
+	}
+	for(int i=0; i<40; i++){
+		disp_setBBMBBusCurrent(i*250);
+		osDelay(50);
+	}
+	for(int i=0; i<40; i++){
+		disp_setBBMBBmsAlertType(DISP_BMS_ALERT_BUS_UV, i*1000);
+		osDelay(50);
+	}
+	for(int i=0; i<4; i++){
+		disp_setDCMBLeftLightState(!(i&1));
+		osDelay(500);
+	}
+	for(int i=0; i<4; i++){
+		disp_setDCMBRightLightState(!(i&1));
+		osDelay(500);
+	}
+	for(int i=0; i<4; i++){
+		disp_setDCMBStopLightState(!(i&1));
+		osDelay(500);
+	}
+	for(int i=0; i<4; i++){
+		disp_setDCMBHazardLightState(!(i&1));
+		osDelay(500);
+	}
+	vTaskDelete(NULL);
+}
+
 void displayTask(void* pv){
+	dispMtx = xSemaphoreCreateMutex();
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	osDelay(10);
-	SSD_init();
+	SSD_init_hack();
 	lv_init();
 	initStyles();
 	xTimerStart(xTimerCreate("", 1, pdTRUE, NULL, lvglTick),0);
@@ -191,13 +270,17 @@ void displayTask(void* pv){
 	lv_disp_buf_init(&disp_buf, buf, NULL, LV_HOR_RES_MAX * LV_VER_RES_MAX);
 	lv_disp_drv_t disp_drv;
 	lv_disp_drv_init(&disp_drv);
-	disp_drv.flush_cb = my_disp_flush;
+	disp_drv.flush_cb = my_disp_flush_hack;
 	disp_drv.buffer = &disp_buf;
 	disp_drv.rounder_cb = my_rounder_cb;
 	lv_disp_drv_register(&disp_drv);
 	createObjects();
+	xSemaphoreGive(dispMtx);
+	xTaskCreate(testTask, "", 256, NULL, 3, NULL);
 	for(;;){
+		xSemaphoreTake(dispMtx, portMAX_DELAY);
 		lv_task_handler();
+		xSemaphoreGive(dispMtx);
 		osDelay(1);
 	}
 }
@@ -217,23 +300,31 @@ static void lvglTick(void* id){
 void disp_setMCMBPulseFreq(uint32_t hz){ // critical
 	float speed = (float)hz / 16.0 * WHEEL_CIRC_M * 3.6;
 	uint8_t buf[10];
-	sprintf(buf, "%.0f", speed);
+	sprintf(buf, "%3d", (int)speed);
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_label_set_text(bigSpeedLabel, buf);
+	xSemaphoreGive(dispMtx);
 }
 
 void disp_setMCMBSpeedUnit(uint8_t pi);
 void disp_setMCMBDispState(uint32_t x);
 
 void disp_setBBMBBusVoltage(uint32_t mv){ // critical
-	uint8_t buf[16];
-	sprintf(buf, "%d.%dV", mv/1000, mv%1000);
+	battV = mv;
+	uint8_t buf[64];
+	sprintf(buf, BBMB_BUS_PWR_MSG, "○", battV/1000, battV%1000/10, battA<0?'-':'+', battA/1000, battA%1000/10, battA<0?'-':'+', (int)((float)battV*(float)battA/1e6));
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_label_set_text(battPwrLabel, buf);
+	xSemaphoreGive(dispMtx);
 }
 
 void disp_setBBMBBusCurrent(uint32_t ma){ // critical
-	uint8_t buf[16];
-	sprintf(buf, "%d.%dA", ma/1000, ma%1000);
+	battA = ma;
+	uint8_t buf[64];
+	sprintf(buf, BBMB_BUS_PWR_MSG, "○", battV/1000, battV%1000/10, battA<0?'-':'+', battA/1000, battA%1000/10, battA<0?'-':'+', (int)((float)battV*(float)battA/1e6));
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_label_set_text(battPwrLabel, buf);
+	xSemaphoreGive(dispMtx);
 }
 
 void disp_setBBMBBmsAlertType(uint8_t type, uint32_t val){ // critical
@@ -271,13 +362,37 @@ void disp_setBBMBBmsAlertType(uint8_t type, uint32_t val){ // critical
 		sprintf(buf, BMS_ALERT_MSG_CELL_UT, type&0x1f, val/1000, val%1000);
 		break;
 	}
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_label_set_text(bmsAlertMessageLabel, buf);
+	xSemaphoreGive(dispMtx);
 }
 
 void disp_setPPTMBBusCurrent(uint32_t ma);
-void disp_setDCMBLeftLightState(uint32_t on); // critical
-void disp_setDCMBRightLightState(uint32_t on); // critical
-void disp_setDCMBStopLightState(uint32_t on); // critical
+
+void disp_setDCMBLeftLightState(uint32_t on){ // critical
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_obj_set_hidden(leftArrowImg, !on);
+	xSemaphoreGive(dispMtx);
+}
+
+void disp_setDCMBRightLightState(uint32_t on){ // critical
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_obj_set_hidden(rightArrowImg, !on);
+	xSemaphoreGive(dispMtx);
+}
+
+void disp_setDCMBStopLightState(uint32_t on){ // critical
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_obj_set_hidden(stopSignImg, !on);
+	xSemaphoreGive(dispMtx);
+}
+
+void disp_setDCMBHazardLightState(uint32_t on){ // critical
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_obj_set_hidden(triangleSignImg, !on);
+	xSemaphoreGive(dispMtx);
+}
+
 void disp_setDCMBIgnitionState(uint32_t on);
 void disp_setDCMBArrayIgnitionState(uint32_t on);
 void disp_setDCMBMotIgnitionState(uint32_t on);
@@ -285,7 +400,9 @@ void disp_setDCMBMotIgnitionState(uint32_t on);
 void disp_setDCMBAccPotPosition(uint8_t x){
 	uint8_t buf[16];
 	sprintf(buf, DCMB_ACC_POS_MSG, x);
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_label_set_text(accPositionObj, buf);
+	xSemaphoreGive(dispMtx);
 }
 
 void disp_setCHASETargetSpeed(uint32_t kph);
