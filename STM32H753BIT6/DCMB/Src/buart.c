@@ -1,5 +1,7 @@
 #include "buart.h"
 #include "string.h"
+#include "SSD1322.h"
+#include "main.h"
 
 #define NUM_UARTS 4
 #define RX_CIRC_BUF_SIZE 2048
@@ -19,6 +21,8 @@
 
 static B_uartHandle_t* buarts[NUM_UARTS];
 static UART_HandleTypeDef* huarts[NUM_UARTS];
+extern UART_HandleTypeDef huart2;
+extern SemaphoreHandle_t txCpltSemHack;
 
 // ########  ######## ########
 // ##     ## ##       ##     ##
@@ -162,6 +166,9 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef * huart){
 			xSemaphoreGiveFromISR(buarts[i]->txSem, NULL);
 			return;
 		}
+	}
+	if(huart == &huart2){
+		//xSemaphoreGiveFromISR(txCpltSemHack, NULL);
 	}
 	//configASSERT(NULL);
 }

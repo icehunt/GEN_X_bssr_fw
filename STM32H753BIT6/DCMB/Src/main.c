@@ -27,6 +27,7 @@
 #include "buart.h"
 #include "btcp.h"
 #include "h7Boot.h"
+#include "disp_renderer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -100,7 +101,7 @@ DMA_HandleTypeDef hdma_uart4_tx;
 DMA_HandleTypeDef hdma_uart4_rx;
 DMA_HandleTypeDef hdma_uart8_rx;
 DMA_HandleTypeDef hdma_uart8_tx;
-DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart3_rx;
 DMA_HandleTypeDef hdma_usart3_tx;
 
@@ -212,6 +213,7 @@ int main(void)
   btcp = B_tcpStart(&buart, buart, 1, &hcrc);
   xTaskCreate(sidePanelTask, "SidePanelTask", 1024, spbBuart, 3, NULL);
   xTaskCreate(steeringWheelTask, "SteeringWheelTask", 1024, swBuart, 5, NULL);
+  //xTaskCreate(displayTask, "displayTask", 2048, NULL, 6, NULL);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -277,17 +279,19 @@ void SystemClock_Config(void)
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
   /** Macro to configure the PLL clock source 
   */
-  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSI);
+  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI
+                              |RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 20;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 2;
+  RCC_OscInitStruct.PLL.PLLN = 50;
   RCC_OscInitStruct.PLL.PLLP = 2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
@@ -307,11 +311,11 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -323,8 +327,8 @@ void SystemClock_Config(void)
                               |RCC_PERIPHCLK_SPI2|RCC_PERIPHCLK_SDMMC
                               |RCC_PERIPHCLK_SPI6|RCC_PERIPHCLK_LPTIM1
                               |RCC_PERIPHCLK_FMC;
-  PeriphClkInitStruct.PLL2.PLL2M = 8;
-  PeriphClkInitStruct.PLL2.PLL2N = 32;
+  PeriphClkInitStruct.PLL2.PLL2M = 2;
+  PeriphClkInitStruct.PLL2.PLL2N = 20;
   PeriphClkInitStruct.PLL2.PLL2P = 2;
   PeriphClkInitStruct.PLL2.PLL2Q = 2;
   PeriphClkInitStruct.PLL2.PLL2R = 2;
@@ -942,7 +946,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 80;
+  htim2.Init.Prescaler = 400;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 100;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -1289,7 +1293,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = 2000000;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -1490,8 +1494,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3|GPIO_PIN_0, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOI, GPIO_PIN_9|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_15 
-                          |GPIO_PIN_4|GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOI, GPIO_PIN_9|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14 
+                          |GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_7, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOF, GPIO_PIN_2|GPIO_PIN_15, GPIO_PIN_RESET);
@@ -1523,10 +1527,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PI9 PI12 PI13 PI15 
-                           PI4 PI7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_15 
-                          |GPIO_PIN_4|GPIO_PIN_7;
+  /*Configure GPIO pins : PI9 PI12 PI13 PI14 
+                           PI15 PI4 PI7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14 
+                          |GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -1664,34 +1668,44 @@ static void MX_GPIO_Init(void)
 static void lightsTmr(TimerHandle_t xTimer){
   static uint8_t current_state = 0;
   static uint8_t buf[4] = {0x03, 0x00, 0x00, 0x00};
+  static uint8_t currentCameraState = 0;
 	current_state ^=1;
 	if(current_state&RIGHT_ENABLED){
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
 		buf[2] = 0x01;
+		disp_setDCMBRightLightState(1);
 	} else {
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_RESET);
-		buf[1] = 0x00;
+		buf[2] = 0x00;
+		disp_setDCMBRightLightState(0);
 	}
 	if(current_state&LEFT_ENABLED){
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_12, GPIO_PIN_SET);
 		buf[1] = 0x01;
+		disp_setDCMBLeftLightState(1);
 	} else {
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_12, GPIO_PIN_RESET);
-		buf[2] = 0x00;
+		buf[1] = 0x00;
+		disp_setDCMBLeftLightState(0);
 	}
-	if(current_state&CAMERA_ENABLED){
-		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_SET);
-	} else {
-		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_RESET);
+	if(currentCameraState != CAMERA_ENABLED){
+		if(CAMERA_ENABLED){
+			HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_SET);
+		} else {
+			HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_RESET);
+		}
+		currentCameraState = CAMERA_ENABLED;
 	}
 	if((HAL_GPIO_ReadPin(GPIOI, GPIO_PIN_9) == GPIO_PIN_SET)){
 		HAL_GPIO_WritePin(GPIOF, GPIO_PIN_2, GPIO_PIN_SET);
 		buf[3] = 0x01;
 		brakeStatus = 1;
+		disp_setDCMBStopLightState(1);
 	} else {
 		HAL_GPIO_WritePin(GPIOF, GPIO_PIN_2, GPIO_PIN_RESET);
 		buf[3] = 0x00;
 		brakeStatus = 0;
+		disp_setDCMBStopLightState(0);
 	}
 	B_tcpSend(btcp, buf, 4);
 }
@@ -1753,6 +1767,7 @@ static void mc2StateTmr(TimerHandle_t xTimer){
 		buf[2] = outputVal;
 //		HAL_UART_Transmit_IT(&huart2, buf2, strlen(buf2));
 		// TODO other buttons
+		disp_setDCMBAccPotPosition(outputVal);
 		B_tcpSend(btcp, buf, 8);
 	}
 }
@@ -1994,6 +2009,30 @@ static void sidePanelTask(const void *pv){
     }
     B_uartDoneRead(e);
   }
+}
+
+void serialParse(B_tcpPacket_t *pkt){
+	switch(pkt->sender){
+	case 0x01:
+		  if(pkt->payload[4] == 0x02){
+			  uint32_t value = pkt->payload[7];
+			  value |= (pkt->payload[7] << 8);
+			  if(pkt->payload[5] == 0x01){
+				 // setBBMBBmsAlertType(DISP_BMS_ALERT_BUS_OV, value );
+			  } else if (pkt->payload[5] == 0x02){
+				//  setBBMBBmsAlertType(DISP_BMS_ALERT_BUS_UV, value );
+			  } else if (pkt->payload[6] == 0x03){
+				 // setBBMBBmsAlertType(DISP_BMS_ALERT_CELL_OT, value );
+			  } else if (pkt->payload[7] == 0x04){
+				 // setBBMBBmsAlertType(DISP_BMS_ALERT_CELL_UT, value );
+			  }
+		  }
+		  break;
+	case 0x03:
+		if(pkt->payload[4] == 0x03){
+			disp_setMCMBPulseFreq(pkt->payload[7]);
+		}
+	}
 }
 /* USER CODE END 4 */
 
