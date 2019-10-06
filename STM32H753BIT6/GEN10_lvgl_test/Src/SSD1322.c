@@ -37,8 +37,8 @@ void SSD_init(){
 	setDC(0);
 	spiSendByte(0xb3); // oscillator stuff str8 from datasheet
 	setDC(1);
-//	spiSendByte(0x91); // default good boy frequency
-	spiSendByte(0xf1); // MAXXXED OUT LET'S GO (but still dividing by 2 for DFF stability)
+	spiSendByte(0x91); // default good boy frequency
+//	spiSendByte(0xf1); // MAXXXED OUT LET'S GO (but still dividing by 2 for DFF stability)
 
 	setDC(0);
 	spiSendByte(0xca); // mux ratio 1/64 (64 rows)
@@ -108,7 +108,7 @@ void SSD_init(){
 	spiSendByte(0x07);
 
 	setDC(0);
-	spiSendByte(0xa6); // normal display mode (not blank or inverted)
+	spiSendByte(0xa7); // normal display mode (not blank or inverted)
 
 	setDC(0);
 	spiSendByte(0xaf); // sleep mode off (disp on)
@@ -321,14 +321,14 @@ void SSD_test(){
 	}
 }
 
-void my_rounder_cb(lv_disp_drv_t * disp_drv, lv_area_t * area){
+void my_rounder_cb(lv_disp_drv_t* disp_drv, lv_area_t* area){
   /* Update the areas as needed. Can be only larger.
    * For example to always have lines 8 px height:*/
    area->x1 = area->x1 & 0xfffffffc;
-   area->x2 = (area->x2 & 0xfffffffc) + 3;
+   area->x2 = area->x2 | 0x3;
 }
 
-void my_disp_flush(lv_disp_t * disp, const lv_area_t * area, lv_color_t * color_p){
+void my_disp_flush(lv_disp_drv_t* disp_drv, const lv_area_t* area, lv_color_t* color_p){
 	uint32_t dx = area->x2-area->x1+1;
 	uint32_t dy = area->y2-area->y1+1;
 	uint32_t len = dx*dy;
@@ -355,22 +355,7 @@ void my_disp_flush(lv_disp_t * disp, const lv_area_t * area, lv_color_t * color_
 #endif
 	SSD_writeRegion(area, buf);
 	vPortFree(buf);
-	lv_disp_flush_ready(disp);         /* Indicate you are ready with the flushing*/
-}
-
-bool my_touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data){
-    static lv_coord_t last_x = 0;
-    static lv_coord_t last_y = 0;
-
-    /*Save the state and save the pressed coordinate*/
-    data->state = touchpad_is_pressed() ? LV_INDEV_STATE_PR : LV_INDEV_STATE_REL;
-    if(data->state == LV_INDEV_STATE_PR) touchpad_get_xy(&last_x, &last_y);
-
-    /*Set the coordinates (if released use the last pressed coordinates)*/
-    data->point.x = last_x;
-    data->point.y = last_y;
-
-    return false; /*Return `false` because we are not buffering and no more data to read*/
+	lv_disp_flush_ready(disp_drv);         /* Indicate you are ready with the flushing*/
 }
 
 void SSD_clearDisplay(){
