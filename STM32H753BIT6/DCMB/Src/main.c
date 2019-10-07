@@ -1490,8 +1490,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3|GPIO_PIN_0, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOI, GPIO_PIN_9|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_15 
-                          |GPIO_PIN_4|GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOI, GPIO_PIN_9|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14 
+                          |GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_7, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOF, GPIO_PIN_2|GPIO_PIN_15, GPIO_PIN_RESET);
@@ -1523,10 +1523,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PI9 PI12 PI13 PI15 
-                           PI4 PI7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_15 
-                          |GPIO_PIN_4|GPIO_PIN_7;
+  /*Configure GPIO pins : PI9 PI12 PI13 PI14 
+                           PI15 PI4 PI7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14 
+                          |GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -1664,25 +1664,29 @@ static void MX_GPIO_Init(void)
 static void lightsTmr(TimerHandle_t xTimer){
   static uint8_t current_state = 0;
   static uint8_t buf[4] = {0x03, 0x00, 0x00, 0x00};
+  static uint8_t currentCameraState = 0;
 	current_state ^=1;
 	if(current_state&RIGHT_ENABLED){
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
 		buf[2] = 0x01;
 	} else {
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_RESET);
-		buf[1] = 0x00;
+		buf[2] = 0x00;
 	}
 	if(current_state&LEFT_ENABLED){
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_12, GPIO_PIN_SET);
 		buf[1] = 0x01;
 	} else {
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_12, GPIO_PIN_RESET);
-		buf[2] = 0x00;
+		buf[1] = 0x00;
 	}
-	if(current_state&CAMERA_ENABLED){
-		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_SET);
-	} else {
-		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_RESET);
+	if(currentCameraState != CAMERA_ENABLED){
+		if(CAMERA_ENABLED){
+			HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_SET);
+		} else {
+			HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_RESET);
+		}
+		currentCameraState = CAMERA_ENABLED;
 	}
 	if((HAL_GPIO_ReadPin(GPIOI, GPIO_PIN_9) == GPIO_PIN_SET)){
 		HAL_GPIO_WritePin(GPIOF, GPIO_PIN_2, GPIO_PIN_SET);
