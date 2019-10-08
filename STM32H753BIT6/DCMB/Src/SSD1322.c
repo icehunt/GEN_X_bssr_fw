@@ -132,16 +132,16 @@ void SSD_init_hack(){
 	txCpltSemHack = xSemaphoreCreateBinary();
 	xSemaphoreGive(txCpltSemHack);
 
-	osDelay(2); // let arduino start up
+//	osDelay(2); // let arduino start up
 
-	lv_area_t area;
-	area.x1 = 0;
-	area.x2 = 255;
-	area.y1 = 0;
-	area.y2 = 63;
-	SSD_writeRegion_hack(&area, kaboom);
+//	lv_area_t area;
+//	area.x1 = 0;
+//	area.x2 = 255;
+//	area.y1 = 0;
+//	area.y2 = 63;
+//	SSD_writeRegion_hack(&area, kaboom);
 
-	osDelay(2000);
+//	osDelay(2000);
 }
 
 void SSD_writeRegion(lv_area_t * area, uint8_t* buf){

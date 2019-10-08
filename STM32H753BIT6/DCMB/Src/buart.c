@@ -168,7 +168,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef * huart){
 		}
 	}
 	if(huart == &huart2){
-		//xSemaphoreGiveFromISR(txCpltSemHack, NULL);
+		xSemaphoreGiveFromISR(txCpltSemHack, NULL);
 	}
 	//configASSERT(NULL);
 }

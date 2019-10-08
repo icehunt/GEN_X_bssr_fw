@@ -205,15 +205,17 @@ int main(void)
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  displayInit();
   xTimerStart(xTimerCreate("lightsTimer", 666, pdTRUE, NULL, lightsTmr), 0);
   xTimerStart(xTimerCreate("mc2StateTimer", 20, pdTRUE, NULL, mc2StateTmr), 0);
+  //xTimerStart(xTimerCreate("display", 100, pdTRUE, 0, displayTmr), 0);
   buart = B_uartstart(&huart4);
   spbBuart = B_uartstart(&huart3);
   swBuart = B_uartstart(&huart8);
   btcp = B_tcpStart(&buart, buart, 1, &hcrc);
   xTaskCreate(sidePanelTask, "SidePanelTask", 1024, spbBuart, 3, NULL);
   xTaskCreate(steeringWheelTask, "SteeringWheelTask", 1024, swBuart, 5, NULL);
-  //xTaskCreate(displayTask, "displayTask", 2048, NULL, 6, NULL);
+
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */

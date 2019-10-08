@@ -32,6 +32,7 @@ LV_IMG_DECLARE(DISP_left_arrow);
 LV_IMG_DECLARE(DISP_right_arrow);
 LV_IMG_DECLARE(DISP_stop_sign);
 LV_IMG_DECLARE(DISP_triangle_sign);
+extern uint8_t kaboom[8192];
 
 //########  ######## ########
 //##     ## ##       ##     ##
@@ -70,6 +71,7 @@ static uint32_t motA = 0;
 // ######     ##       ##    ######## ########  ######
 
 static lv_style_t screenStl; // Screen Background
+static lv_style_t barStl; // Indicator Bar Style
 static lv_style_t bigNumStl; // Big Number
 static lv_style_t targetSpeedStl; // Target Speed
 static lv_style_t bigUnitStl; // Big Number's Units
@@ -84,6 +86,10 @@ static void initStyles(){
 	screenStl.body.main_color = lv_color_hex3(0x000);
 	screenStl.text.color = lv_color_hex3(0x0F0);
 	screenStl.text.font = &Hack_8_2FA1F;
+	// Indicator Bar Style
+	lv_style_copy(&barStl, &lv_style_transp_tight);
+	barStl.body.main_color = lv_color_hex3(0x0a0);
+	barStl.text.font = &Hack_8_2FA1F;
 	// Big Number
 	lv_style_copy(&bigNumStl, &lv_style_transp_tight);
 	bigNumStl.body.main_color = lv_color_hex3(0x000);
@@ -209,11 +215,10 @@ static void createObjects(){
 	lv_obj_set_pos(triangleSignImg, 171, 6);
 	lv_obj_set_hidden(triangleSignImg, 1);
 
-//	accPositionObj = lv_label_create(lv_scr_act(), NULL);
-//	lv_label_set_text(accPositionObj, "ACC=NaN/255");
-//	lv_label_set_style(accPositionObj, LV_LABEL_STYLE_MAIN, &targetSpeedStl);
-//	lv_label_set_align(accPositionObj, LV_LABEL_ALIGN_LEFT);
-//	lv_obj_set_pos(accPositionObj, 128, 0);
+	accPositionObj = lv_obj_create(lv_scr_act(), NULL);
+	lv_obj_set_style(accPositionObj, &barStl);
+	lv_obj_set_pos(accPositionObj, 56, 18);
+	lv_obj_set_width(accPositionObj, 0);
 }
 
 //######## ##     ## ##    ##  ######
@@ -259,6 +264,54 @@ static void testTask(void* pv){
 		osDelay(500);
 	}
 	vTaskDelete(NULL);
+}
+
+void displayInit(){
+	dispMtx = xSemaphoreCreateMutex();
+//	xSemaphoreTake(dispMtx, portMAX_DELAY);
+//	osDelay(50);
+	SSD_init_hack();
+	lv_init();
+	initStyles();
+	xTimerStart(xTimerCreate("", 1, pdTRUE, NULL, lvglTick),0);
+	lv_disp_buf_t* disp_buf = pvPortMalloc(sizeof(lv_disp_buf_t));
+	lv_color_t* buf = pvPortMalloc((LV_HOR_RES_MAX * LV_VER_RES_MAX) * sizeof(lv_color_t));
+	lv_disp_buf_init(disp_buf, buf, NULL, LV_HOR_RES_MAX * LV_VER_RES_MAX);
+	lv_disp_drv_t* disp_drv = pvPortMalloc(sizeof(lv_disp_drv_t));
+	lv_disp_drv_init(disp_drv);
+	disp_drv->flush_cb = my_disp_flush_hack;
+	disp_drv->buffer = disp_buf;
+	disp_drv->rounder_cb = my_rounder_cb;
+	lv_disp_drv_register(disp_drv);
+	createObjects();
+//	xSemaphoreGive(dispMtx);
+}
+
+void displayInitTmr(void* pv){
+}
+
+void displayTmr(TimerHandle_t xTimer){
+	uint32_t id = pvTimerGetTimerID(xTimer);
+	if(id == 0){
+		vTimerSetTimerID(xTimer, 1);
+	}else if(id == 1){
+		lv_area_t area;
+		area.x1 = 0;
+		area.x2 = 255;
+		area.y1 = 0;
+		area.y2 = 63;
+		SSD_writeRegion_hack(&area, kaboom);
+		xTimerChangePeriod(xTimer, 1975, portMAX_DELAY);
+		vTimerSetTimerID(xTimer, 2);
+	}else if(id == 2){
+		xTimerChangePeriod(xTimer, 25, portMAX_DELAY);
+		vTimerSetTimerID(xTimer, 3);
+	}else{
+		if(xSemaphoreTake(dispMtx, 0) == pdPASS){
+			lv_task_handler();
+			xSemaphoreGive(dispMtx);
+		}
+	}
 }
 
 void displayTask(void* pv){
@@ -402,10 +455,8 @@ void disp_setDCMBArrayIgnitionState(uint32_t on);
 void disp_setDCMBMotIgnitionState(uint32_t on);
 
 void disp_setDCMBAccPotPosition(uint8_t x){
-	uint8_t buf[16];
-	sprintf(buf, DCMB_ACC_POS_MSG, x);
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
-	lv_label_set_text(accPositionObj, buf);
+	lv_obj_set_width(accPositionObj, (uint32_t)x*43/255);
 	xSemaphoreGive(dispMtx);
 }
 

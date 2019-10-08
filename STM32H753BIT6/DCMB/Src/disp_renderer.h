@@ -14,6 +14,8 @@
 #include "lvgl/lvgl.h"
 
 void displayTask(void* pv);
+void displayInit();
+void displayTmr(void* pv);
 void disp_setMCMBPulseFreq(uint32_t hz); // critical
 void disp_setMCMBSpeedUnit(uint8_t pi);
 void disp_setMCMBDispState(uint32_t x);
