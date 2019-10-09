@@ -277,8 +277,8 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
 		LV_FONT_DECLARE(Hack_24_2FA1F)\
 		LV_FONT_DECLARE(Hack_28_2FA1F)\
 		LV_FONT_DECLARE(Hack_32_2FA1F)\
-		LV_FONT_DECLARE(Ds_8_7F)\
 		LV_FONT_DECLARE(DISP_Ds_55_7F)\
+		LV_FONT_DECLARE(DISP_Ds_24_7F)\
 		LV_FONT_DECLARE(DISP_Thumb_8_7F)
 
 /*Always set a default font from the built-in fonts*/

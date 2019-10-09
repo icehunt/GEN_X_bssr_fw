@@ -26,7 +26,6 @@ static const char* BMS_ALERT_MSG_CELL_UV = "CELL UNDERVOLTAGE!!! #%d @ %d.%dV";
 static const char* BMS_ALERT_MSG_CELL_OC = "CELL OVERCURRENT!!! #%d @ %d.%dA";
 static const char* BMS_ALERT_MSG_CELL_OT = "CELL OVERTEMPERATURE!!! #%d @ %d.%d°C";
 static const char* BMS_ALERT_MSG_CELL_UT = "CELL UNDERTEMPERATURE!!! #%d @ %d.%d°C";
-static const char* DCMB_ACC_POS_MSG = "ACC = %d/255";
 static const char* BBMB_BUS_PWR_MSG = "%s %3d.%02d#999999 V, %c#%2d.%02d#999999 A, %c#%5d#999999 W OUT";
 static const char* PPTMB_BUS_PWR_MSG = "%s %3d.%02d#999999 V, %c#%2d.%02d#999999 A, %c#%5d#999999 W OUT";
 LV_IMG_DECLARE(DISP_main_bg);
@@ -60,6 +59,7 @@ static void updateMta();
 static void updateAcc();
 static void updateRegen();
 static void updateMotLcd();
+static void updateMotOnBox();
 
 // ######  ##     ##
 //##    ## ##     ##
@@ -104,6 +104,7 @@ void(*vfmDownCallback)(void);
 void(*vfmResetCallback)(void);
 void(*accResetCallback)(void);
 void(*regenResetCallback)(void);
+void(*motOnCallback)(uint8_t on);
 
 // ######  ######## ##    ## ##       ########  ######
 //##    ##    ##     ##  ##  ##       ##       ##    ##
@@ -122,6 +123,8 @@ static lv_style_t scrDivStl; // Screen Divider
 static lv_style_t smlTxtStl; // Small Text
 static lv_style_t pwrTxtStl; // Main Power Style
 static lv_style_t gearTxtStl; // Gear Text Style
+static lv_style_t mainVfmStl; // Main screen VFM Style
+static lv_style_t motOnStl; // Mot On Box Style
 
 static lv_style_t motVfmStl;
 static lv_style_t motLcdStl;
@@ -167,6 +170,18 @@ static void initStyles(){
 	lv_style_copy(&gearTxtStl, &bigNumStl);
 	gearTxtStl.text.font = &Hack_24_2FA1F;
 	gearTxtStl.text.color = lv_color_hex3(0x0C0);
+	// Main screen VFM Style
+	lv_style_copy(&mainVfmStl, &bigNumStl);
+	mainVfmStl.text.font = &DISP_Ds_24_7F;
+	mainVfmStl.text.color = lv_color_hex3(0xCCC);
+	// Mot On Box Style
+	lv_style_copy(&motOnStl, &bigNumStl);
+	motOnStl.text.font = &Hack_16_2FA1F;
+	motOnStl.text.color = lv_color_hex3(0xFFF);
+	motOnStl.body.border.width = 2;
+	motOnStl.body.border.color = lv_color_hex3(0xFFF);
+	motOnStl.body.main_color = lv_color_hex3(0x000);
+	motOnStl.body.padding.inner = 7;
 
 	// motVfmStl
 	lv_style_copy(&motVfmStl, &bigNumStl);
@@ -182,8 +197,8 @@ static void initStyles(){
 	motMtaStl.text.color = lv_color_hex3(0xFFF);
 	// motAccArcStl
 	lv_style_copy(&motAccArcStl, &lv_style_transp_tight);
-	style.line.color = lv_color_hex3(0xFFF);
-	style.line.width = 2;
+	motAccArcStl.line.color = lv_color_hex3(0xFFF);
+	motAccArcStl.line.width = 2;
 	// motAccTxtStl
 	lv_style_copy(&motAccTxtStl, &bigNumStl);
 	motAccTxtStl.text.font = &Hack_12_2FA1F;
@@ -207,12 +222,14 @@ static lv_obj_t* arrayPwrLabel;
 static lv_obj_t* bmsAlertMessageLabel;
 static lv_obj_t* accPositionObj;
 static lv_obj_t* gearTxtLabel;
+static lv_obj_t* mainVfmLabel;
+static lv_obj_t* motOnLabel;
 static lv_obj_t* leftArrowImg;
 static lv_obj_t* rightArrowImg;
 static lv_obj_t* stopSignImg;
 static lv_obj_t* triangleSignImg;
 static lv_obj_t* mainPageLedBar[11];
-static lv_obj_t* mainPageObjs[] = {backgroundImg,bigSpeedLabel,bigUnitLabel,targetSpeedLabel,battPwrLabel,arrayPwrLabel,bmsAlertMessageLabel,accPositionObj,gearTxtLabel,leftArrowImg,rightArrowImg,stopSignImg,triangleSignImg};
+static lv_obj_t** mainPageObjs[] = {&backgroundImg,&bigSpeedLabel,&bigUnitLabel,&targetSpeedLabel,&battPwrLabel,&arrayPwrLabel,&bmsAlertMessageLabel,&accPositionObj,&gearTxtLabel,&motOnLabel,&leftArrowImg,&rightArrowImg,&stopSignImg,&triangleSignImg};
 static lv_obj_t* motBgImg;
 static lv_obj_t* motVfmLabel;
 static lv_obj_t* motLcdLabel;
@@ -228,14 +245,14 @@ static lv_obj_t* motRegenArc;
 static lv_obj_t* motAccLabel;
 static lv_obj_t* motRegenLabel;
 static lv_obj_t* motPageLedBar[11];
-static lv_obj_t* motPageObjs[] = {motBgImg,motVfmLabel,motLcdLabel,motMtaLabel,motFwdImg,motRevImg,motPwrImg,motEcoImg,motOnImg,motOffImg,motAccArc,motRegenArc,motAccLabel,motRegenLabel};
+static lv_obj_t** motPageObjs[] = {&motBgImg,&motVfmLabel,&motLcdLabel,&motMtaLabel,&motFwdImg,&motRevImg,&motPwrImg,&motEcoImg,&motOnImg,&motOffImg,&motAccArc,&motRegenArc,&motAccLabel,&motRegenLabel};
 
 static void createObjects(){
 	lv_obj_set_style(lv_scr_act(), &screenStl);
 
 	// Main Screen
 	backgroundImg = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(backgroundImg, &DISP_main_background);
+	lv_img_set_src(backgroundImg, &DISP_main_bg);
 	lv_obj_set_pos(backgroundImg, 0, 0);
 
 	bigSpeedLabel = lv_label_create(lv_scr_act(), NULL);
@@ -284,6 +301,21 @@ static void createObjects(){
 	lv_label_set_align(gearTxtLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(gearTxtLabel, 132, 0);
 
+	mainVfmLabel = lv_label_create(lv_scr_act(), NULL);
+	lv_label_set_text(mainVfmLabel, "01");
+	lv_label_set_style(mainVfmLabel, LV_LABEL_STYLE_MAIN, &mainVfmStl);
+	lv_label_set_align(mainVfmLabel, LV_LABEL_ALIGN_LEFT);
+	lv_obj_set_pos(mainVfmLabel, 220, 8);
+
+	motOnLabel = lv_label_create(lv_scr_act(), NULL);
+	lv_label_set_text(motOnLabel, "Press SEL to\ntoggle motor");
+	lv_label_set_style(motOnLabel, LV_LABEL_STYLE_MAIN, &motOnStl);
+	lv_label_set_align(motOnLabel, LV_LABEL_ALIGN_CENTER);
+	lv_obj_set_pos(motOnLabel, 63, 8);
+	lv_obj_set_width(motOnLabel, 130);
+	lv_obj_set_height(motOnLabel, 48);
+	lv_obj_set_hidden(motOnLabel, 1);
+
 	leftArrowImg = lv_img_create(lv_scr_act(), NULL);
 	lv_img_set_src(leftArrowImg, &DISP_left_arrow);
 	lv_obj_set_pos(leftArrowImg, 149, 6);
@@ -312,11 +344,11 @@ static void createObjects(){
 
 	// Motor Screen
 	motBgImg = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(backgroundImg, &DISP_main_background);
+	lv_img_set_src(backgroundImg, &DISP_main_bg);
 	lv_obj_set_pos(backgroundImg, 0, 0);
 
 	motVfmLabel = lv_label_create(lv_scr_act(), NULL);
-	lv_label_set_text(motVfmLabel, "  ");
+	lv_label_set_text(motVfmLabel, "01");
 	lv_label_set_style(motVfmLabel, LV_LABEL_STYLE_MAIN, &motVfmStl);
 	lv_label_set_align(motVfmLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(motVfmLabel, -3, 8);
@@ -399,7 +431,7 @@ static void createObjects(){
 static void showMainPage(uint8_t en){
 	const size_t len = sizeof(mainPageObjs) / sizeof(lv_obj_t*);
 	for(size_t i = 0; i < len; i++){
-		if(mainPageObjs[i]) lv_obj_set_hidden(mainPageObjs[i], !en);
+		if(mainPageObjs[i]) lv_obj_set_hidden(*mainPageObjs[i], !en);
 	}
 	for(size_t i = 0; i < 11; i++){
 		if(mainPageLedBar[i]) lv_obj_set_hidden(mainPageLedBar[i], !en);
@@ -409,7 +441,7 @@ static void showMainPage(uint8_t en){
 static void showMotPage(uint8_t en){
 	const size_t len = sizeof(motPageObjs) / sizeof(lv_obj_t*);
 	for(size_t i = 0; i < len; i++){
-		if(motPageObjs[i]) lv_obj_set_hidden(motPageObjs[i], !en);
+		if(motPageObjs[i]) lv_obj_set_hidden(*motPageObjs[i], !en);
 	}
 	for(size_t i = 0; i < 11; i++){
 		if(motPageLedBar[i]) lv_obj_set_hidden(motPageLedBar[i], !en);
@@ -471,6 +503,7 @@ void displayInit(){
 	disp_drv->rounder_cb = my_rounder_cb;
 	lv_disp_drv_register(disp_drv);
 	createObjects();
+	state.vfm = 1;
 //	xSemaphoreGive(dispMtx);
 }
 
@@ -571,7 +604,12 @@ static void updateGearLabel(){
 }
 
 static void updateVfm(){
-
+	uint8_t buf[4];
+	sprintf(buf, "%02d", state.vfm);
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_label_set_text(motVfmLabel, buf);
+	lv_label_set_text(mainVfmLabel, buf);
+	xSemaphoreGive(dispMtx);
 }
 
 static void updateMta(){
@@ -583,18 +621,32 @@ static void updateMta(){
 }
 
 static void updateAcc(){
+	uint8_t buf[8];
+	sprintf(buf, "%03d", state.acc);
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_obj_set_width(accPositionObj, (uint32_t)state.acc*43/255);
-	lv_arc_set_angles(motAccArc, 315-(int)((float)acc*270.0f/255.0f), 315);
+	lv_arc_set_angles(motAccArc, 315-(int)((float)state.acc*270.0f/255.0f), 315);
+	lv_label_set_text(motAccLabel, buf);
 	xSemaphoreGive(dispMtx);
 }
 
 static void updateRegen(){
-
+	uint8_t buf[8];
+	sprintf(buf, "%03d", state.regen);
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_arc_set_angles(motRegenArc, 315-(int)((float)state.regen*270.0f/255.0f), 315);
+	lv_label_set_text(motRegenLabel, buf);
+	xSemaphoreGive(dispMtx);
 }
 
 static void updateMotLcd(){
 
+}
+
+static void updateMotOnBox(){
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_obj_set_hidden(motOnLabel, !state.motOnWindow);
+	xSemaphoreGive(dispMtx);
 }
 
 
@@ -725,9 +777,9 @@ void disp_setDCMBMotIgnitionState(uint32_t on){
 	updateMotOnSw();
 	updateGearLabel();
 	if(!on){
-		state.vfm = 0;
+		state.vfm = 1;
 		updateVfm();
-//		if(vfmResetCallback) vfmResetCallback();
+		if(vfmResetCallback) vfmResetCallback();
 		state.mta = 0;
 		updateMta();
 		if(mtaCallback) mtaCallback(0);
@@ -786,6 +838,10 @@ void disp_attachRegenResetCallback(void(*cb)(void)){
 	regenResetCallback = cb;
 }
 
+void disp_attachMotOnCallback(void(*cb)(uint8_t on)){
+	motOnCallback = cb;
+}
+
 void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, uint8_t sel, int16_t enc){
 	// edge detect
 	int8_t upEdge = up-state.lastUp;
@@ -800,8 +856,8 @@ void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, 
 		if(selEdge == 1){
 			state.motOn = state.motOn ? 0 : 1;
 			state.motOnWindow = 0;
-//			updateSw
-			// domotoff
+			updateMotOnBox();
+			disp_setDCMBMotIgnitionState(state.motOn);
 			downEdge = upEdge = leftEdge = rightEdge = selEdge = state.encAcc = 0;
 		}else if(downEdge == 1 || upEdge == 1 || leftEdge == 1 || rightEdge == 1 || state.encAcc >= 2 || state.encAcc <= -2){
 			state.motOnWindow = 0;
@@ -811,7 +867,7 @@ void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, 
 		if(state.page == 0){
 			if(downEdge == 1){
 				state.motOnWindow = 1;
-				// update
+				updateMotOnBox();
 				downEdge = upEdge = leftEdge = rightEdge = selEdge = state.encAcc = 0;
 			}
 		}
@@ -832,10 +888,18 @@ void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, 
 		// mot page logic
 		if(state.page == 1){
 			if(downEdge == 1){
-				if(vfmDownCallback) vfmDownCallback();
+				if(state.vfm > 1){
+					state.vfm--;
+					updateVfm();
+					if(vfmDownCallback) vfmDownCallback();
+				}
 			}
 			if(upEdge == 1){
-				if(vfmUpCallback) vfmUpCallback();
+				if(state.vfm < 8){
+					state.vfm++;
+					updateVfm();
+					if(vfmUpCallback) vfmUpCallback();
+				}
 			}
 			if(leftEdge == 1){
 				if(state.mta > 0){
