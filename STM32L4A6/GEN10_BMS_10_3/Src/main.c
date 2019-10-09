@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
+******************************************************************************
+* @file : main.c
+* @brief: Main program body
+******************************************************************************
+* @attention
+*
+* <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
+* All rights reserved.</center></h2>
+*
+* This software component is licensed by ST under Ultimate Liberty license
+* SLA0044, the "License"; You may not use this file except in compliance with
+* the License. You may obtain a copy of the License at:
+* www.st.com/SLA0044
+*
+******************************************************************************
+*/
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -142,7 +142,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  LAUNCH_armNuke();
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -156,23 +156,26 @@ int main(void)
   MX_ADC2_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-
+//  #if CAN_ENABLED == 1
+//    //HAL_UART_Transmit(&huart2, "Starting CAN Tasks\r\n", strlen("Starting CAN Tasks\r\n"), 100);
+//    CAN_INIT();
+//  #endif
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
+    /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
+    /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
-  /* start timers, add new ones, ... */
+    /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
+    /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -181,12 +184,13 @@ int main(void)
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
-  osThreadDef(adcReadTask, StartAdcReadTask, osPriorityNormal, 0, 128);
-  adcReadTaskHandle = osThreadCreate(osThread(adcReadTask), NULL);
+    /* add threads, ... */
 
-  osThreadDef(bqTask, StartBqTask, osPriorityAboveNormal, 0, 128);
-  bqTaskHandle = osThreadCreate(osThread(bqTask), NULL);
+    osThreadDef(adcReadTask, StartAdcReadTask, osPriorityNormal, 0, 128);
+    adcReadTaskHandle = osThreadCreate(osThread(adcReadTask), NULL);
+
+    osThreadDef(bqTask, StartBqTask, osPriorityAboveNormal, 0, 128);
+    bqTaskHandle = osThreadCreate(osThread(bqTask), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -196,12 +200,12 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+    while (1)
+    {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+    }
   /* USER CODE END 3 */
 }
 
@@ -766,7 +770,7 @@ void HAL_UART_RxCpltCallback (UART_HandleTypeDef *huart){
   //   mTemp = 373000;
 
   //   // change format of the data
-  //   for (int byteIndex = 0; byteIndex < CAN_ITEM_SIZE / 2; byteIndex ++ ){
+  //   for (int byteIndex = 0; byteIndex < CAN_ITEM_SIZE / 2; byteIndex ++ ){  
   //     data[byteIndex] = mVolt & 0xFF;
   //     mVolt >>= 8;
 
@@ -859,7 +863,7 @@ void StartBqTask(void const *argument)
              *      ADC Cali    readBat 7, 1
              *      ADC Cali    readBat 8, 1
              *      Voltage 1-6 readBat [1...6], 0
-             *      Temp 1-5    readTemp [1...5], 1
+             *      Temp 1-5    readTemp [1...5], 1     
              *  */
 
             int voltageIndex = bq.batIndex;
@@ -869,7 +873,7 @@ void StartBqTask(void const *argument)
                 double volt = BQ_getTempVoltage(&bq, ADC_result, &huart2);
                 double resis = BQ_getTempResists(&bq, volt);
                 double temp = BQ_getTempResult(&bq, volt);
-                // sprintf(msg, "Temp:%4d\tTemp:%d'C\tRes:%6dohm\tADC:%6d\tVolt:%6dmv\r\n",
+                // sprintf(msg, "Temp:%4d\tTemp:%d'C\tRes:%6dohm\tADC:%6d\tVolt:%6dmv\r\n", 
                 //         bq.tempIndex, (int) (temp), (int) (resis) , (int)ADC_result, (int) (volt * 1000));
                 // HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
 
@@ -924,7 +928,7 @@ void StartBqTask(void const *argument)
             }
             else if (voltageIndex <= 6)
             {
-                double VCOUT = BQ_getVoltageFromAdc(&bq, ADC_result);
+                double VCOUT = BQ_getVoltageFromAdc(&bq, ADC_result); 
                 double voltage = BQ_getVoltage(&bq, ADC_result, NULL);
                 // voltage += (voltageIndex > 1 ? voltages[voltageIndex - 1] : 0);
                 voltages[voltageIndex] = voltage;
@@ -980,7 +984,7 @@ void StartBqTask(void const *argument)
             //			sprintf(msg, 'Status report: adc_running: %d, adc_count: %d\r\n', xxx, adc2count);
             //			HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
         }
-         // check for log
+         // check for log 
         // if (!bq.nSetOfData) logBqResultsCan();
         if (logReq) {
           logBqResultsUart();
@@ -1041,12 +1045,12 @@ void logBqResultsCan() {
   uint32_t mVolt, mTemp;
   for (int i = 1; i <= 5; i++) {
     id = (BSSR_CAN_TX_DEVICE_ID << 3) + i;
-
+    
     mVolt = (int)(bq.cellVoltages[i] * 1000.);
     mTemp = (int)((bq.cellTemps[i] + 273.) * 1000.);
 
     // change format of the data
-    for (int byteIndex = 0; byteIndex < CAN_ITEM_SIZE / 2; byteIndex ++ ){
+    for (int byteIndex = 0; byteIndex < CAN_ITEM_SIZE / 2; byteIndex ++ ){  
       data[byteIndex] = mVolt & 0xFF;
       mVolt >>= 8;
 
@@ -1067,7 +1071,7 @@ void logBqResultsCan() {
       sprintf(msg, "\r\n");
       HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
     #endif
-
+    
     #if CAN_ENABLED == 1
       BSSR_CAN_Tx(id, data);
       osDelay(0);
@@ -1077,7 +1081,7 @@ void logBqResultsCan() {
 
 void logBqResultsUart() {
   #if UART_EN  == 1
-    // log out all
+    // log out all 
     for (int i = 1; i <= 5; i ++) {
       // log the voltage first
       sprintf(msg, "Bat:%d\t\r\nVoltage:%6dmv\r\n", (int)i, (int)(bq.cellVoltages[i] * 1000.));
@@ -1094,7 +1098,7 @@ void logBqResultsUart() {
         HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
       }
 
-      // log the temps
+      // log the temps 
       sprintf(msg, "Temp:%dmK\r\n", (int) ((bq.cellTemps[i] + 273.) * 1000.));
       HAL_UART_Transmit(&huart2, msg, strlen(msg), 1000);
 
@@ -1117,10 +1121,10 @@ void logBqResultsUart() {
 
 /* USER CODE BEGIN Header_StartDefaultTask */
 /**
-  * @brief  Function implementing the defaultTask thread.
-  * @param  argument: Not used 
-  * @retval None
-  */
+* @briefFunction implementing the defaultTask thread.
+* @paramargument: Not used 
+* @retval None
+*/
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void const * argument)
 {
@@ -1162,7 +1166,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
   /* USER CODE END Callback 1 */
 }
 
@@ -1173,8 +1176,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-
+    /* User can add his own implementation to report the HAL error return state */
+  #if UART_EN == 1
+    sprintf(msg, "UNKNOWN ERROR!\r\nREBOOTING...\r\n\r\n");
+    HAL_UART_Transmit(&huart2, msg, strlen(msg), 100);
+  #endif
+    HAL_NVIC_SystemReset(); // rebooting the MCU
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -1189,8 +1196,8 @@ void Error_Handler(void)
 void assert_failed(char *file, uint32_t line)
 { 
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    /* User can add his own implementation to report the file name and line number,
+ tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
