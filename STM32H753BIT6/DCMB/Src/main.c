@@ -27,6 +27,7 @@
 #include "buart.h"
 #include "btcp.h"
 #include "h7Boot.h"
+#include "disp_renderer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,7 +52,8 @@
 #define RIGHT_SIG 16
 #define HORN 128
 #define DPAD_DOWN 1
-
+#define DPAD_LEFT 2
+#define DPAD_RIGHT 8
 uint8_t LEFT_ENABLED = 0;
 uint8_t RIGHT_ENABLED = 0;
 uint8_t CENTER_ENABLED = 0;
@@ -100,6 +102,7 @@ DMA_HandleTypeDef hdma_uart4_tx;
 DMA_HandleTypeDef hdma_uart4_rx;
 DMA_HandleTypeDef hdma_uart8_rx;
 DMA_HandleTypeDef hdma_uart8_tx;
+DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
 DMA_HandleTypeDef hdma_usart3_rx;
 DMA_HandleTypeDef hdma_usart3_tx;
@@ -120,6 +123,8 @@ uint8_t accValue = 0;
 uint8_t brakeStatus = 0;
 uint8_t motorState = 0;
 uint8_t fwdRevState = 0;
+uint8_t vfmUpState = 0;
+uint8_t vfmDownState = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -204,14 +209,17 @@ int main(void)
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  displayInit();
   xTimerStart(xTimerCreate("lightsTimer", 666, pdTRUE, NULL, lightsTmr), 0);
   xTimerStart(xTimerCreate("mc2StateTimer", 20, pdTRUE, NULL, mc2StateTmr), 0);
+  xTimerStart(xTimerCreate("display", 100, pdTRUE, 0, displayTmr), 0);
   buart = B_uartstart(&huart4);
   spbBuart = B_uartstart(&huart3);
   swBuart = B_uartstart(&huart8);
   btcp = B_tcpStart(&buart, buart, 1, &hcrc);
   xTaskCreate(sidePanelTask, "SidePanelTask", 1024, spbBuart, 3, NULL);
   xTaskCreate(steeringWheelTask, "SteeringWheelTask", 1024, swBuart, 5, NULL);
+
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -277,17 +285,19 @@ void SystemClock_Config(void)
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
   /** Macro to configure the PLL clock source 
   */
-  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSI);
+  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI
+                              |RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 20;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 2;
+  RCC_OscInitStruct.PLL.PLLN = 50;
   RCC_OscInitStruct.PLL.PLLP = 2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
@@ -307,11 +317,11 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -323,8 +333,8 @@ void SystemClock_Config(void)
                               |RCC_PERIPHCLK_SPI2|RCC_PERIPHCLK_SDMMC
                               |RCC_PERIPHCLK_SPI6|RCC_PERIPHCLK_LPTIM1
                               |RCC_PERIPHCLK_FMC;
-  PeriphClkInitStruct.PLL2.PLL2M = 8;
-  PeriphClkInitStruct.PLL2.PLL2N = 32;
+  PeriphClkInitStruct.PLL2.PLL2M = 2;
+  PeriphClkInitStruct.PLL2.PLL2N = 20;
   PeriphClkInitStruct.PLL2.PLL2P = 2;
   PeriphClkInitStruct.PLL2.PLL2Q = 2;
   PeriphClkInitStruct.PLL2.PLL2R = 2;
@@ -942,7 +952,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 80;
+  htim2.Init.Prescaler = 400;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 100;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -1289,7 +1299,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = 2000000;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -1407,6 +1417,9 @@ static void MX_DMA_Init(void)
   /* DMA2_Stream0_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
 
 }
 
@@ -1669,16 +1682,20 @@ static void lightsTmr(TimerHandle_t xTimer){
 	if(current_state&RIGHT_ENABLED){
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
 		buf[2] = 0x01;
+		disp_setDCMBRightLightState(1);
 	} else {
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_RESET);
 		buf[2] = 0x00;
+		disp_setDCMBRightLightState(0);
 	}
 	if(current_state&LEFT_ENABLED){
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_12, GPIO_PIN_SET);
 		buf[1] = 0x01;
+		disp_setDCMBLeftLightState(1);
 	} else {
 		HAL_GPIO_WritePin(GPIOI, GPIO_PIN_12, GPIO_PIN_RESET);
 		buf[1] = 0x00;
+		disp_setDCMBLeftLightState(0);
 	}
 	if(currentCameraState != CAMERA_ENABLED){
 		if(CAMERA_ENABLED){
@@ -1692,10 +1709,12 @@ static void lightsTmr(TimerHandle_t xTimer){
 		HAL_GPIO_WritePin(GPIOF, GPIO_PIN_2, GPIO_PIN_SET);
 		buf[3] = 0x01;
 		brakeStatus = 1;
+		disp_setDCMBStopLightState(1);
 	} else {
 		HAL_GPIO_WritePin(GPIOF, GPIO_PIN_2, GPIO_PIN_RESET);
 		buf[3] = 0x00;
 		brakeStatus = 0;
+		disp_setDCMBStopLightState(0);
 	}
 	B_tcpSend(btcp, buf, 4);
 }
@@ -1754,9 +1773,18 @@ static void mc2StateTmr(TimerHandle_t xTimer){
 		}
 		buf[1] = motorState << 4;
 		buf[1] |= fwdRevState << 3;
+		buf[1] |= vfmUpState << 2;
+		buf[1] |= vfmDownState << 1;
+		if(vfmUpState == 1){
+			vfmUpState = 0;
+		}
+		if(vfmDownState == 1){
+			vfmDownState = 0;
+		}
 		buf[2] = outputVal;
 //		HAL_UART_Transmit_IT(&huart2, buf2, strlen(buf2));
 		// TODO other buttons
+		disp_setDCMBAccPotPosition(outputVal);
 		B_tcpSend(btcp, buf, 8);
 	}
 }
@@ -1876,21 +1904,27 @@ static void buttonCheck(uint8_t state){
   prev_data = data;
 }
 
-static void steeringButtonCheck(uint8_t state){
+static void steeringButtonCheck(uint8_t *state){
 	static long motor_press_time = 0;
 	static uint8_t motor_pressed = 0;
 	static uint8_t motor_state = 0;
 	static uint8_t buf[2];
-	if(!(state&DPAD_DOWN)){
+	static uint8_t horn_on = 0;
+	static uint8_t vfm_up_pressed = 0;
+	static long vfm_up_press_time = 0;
+	static uint8_t vfm_down_pressed = 0;
+	static long vfm_down_press_time = 0;
+	static long last_vfm_change_time = 0;
+	if(!(state[0]&DPAD_DOWN)){
 		if(motor_press_time == 0){
 			motor_press_time = xTaskGetTickCount();
 		} else if((motor_press_time + 1000 < xTaskGetTickCount()) && motor_pressed == 0){
-			if(ignition_state != (uint8_t) 1){
-				motor_pressed = 0;
-				motor_press_time = 0;
-				return;
-			}
-
+//			if(ignition_state != (uint8_t) 1){
+//				motor_pressed = 0;
+//				motor_press_time = 0;
+//				return;
+//			}
+			motor_pressed = 0;
 			motor_press_time = 0;
 			motor_state ^= 1;
 			motorState = motor_state;
@@ -1900,6 +1934,48 @@ static void steeringButtonCheck(uint8_t state){
 		motor_press_time = 0;
 		motor_pressed = 0;
 	}
+	if(!(state[0]&HORN)){
+	  if(!horn_on){
+        uint8_t bufh[2] = {0x04, 0x01};
+	    B_tcpSend(btcp, bufh, 2);
+	    horn_on = 1;
+	  }
+	} else if (horn_on){
+      uint8_t bufh2[2] = {0x04, 0x00};
+	  B_tcpSend(btcp, bufh2, 2);
+	  horn_on = 0;
+	}
+
+	if(!(state[0]&DPAD_LEFT)){
+		if(vfm_up_press_time == 0){
+			vfm_up_press_time = xTaskGetTickCount();
+		} else if ((vfm_up_press_time + 1000 < xTaskGetTickCount()) && vfm_up_pressed == 0){
+			vfm_up_press_time = 0;
+			if(last_vfm_change_time + 500 < xTaskGetTickCount()){
+				vfmUpState ^= 1;
+				last_vfm_change_time = xTaskGetTickCount();
+			}
+		}
+	} else {
+		vfm_up_press_time = 0;
+		vfm_up_pressed = 0;
+	}
+
+	if(!(state[0]&DPAD_RIGHT)){
+		if(vfm_down_press_time == 0){
+			vfm_down_press_time = xTaskGetTickCount();
+		} else if ((vfm_down_press_time + 1000 < xTaskGetTickCount()) && vfm_down_pressed == 0){
+			vfm_down_press_time = 0;
+			if(last_vfm_change_time + 500 < xTaskGetTickCount()){
+				vfmDownState ^= 1;
+				last_vfm_change_time = xTaskGetTickCount();
+			}
+		}
+	} else {
+		vfm_down_press_time = 0;
+		vfm_down_pressed = 0;
+	}
+
 }
 static void steeringWheelTask(const void *pv){
   B_uartHandle_t *buart = pv;
@@ -1943,7 +2019,7 @@ static void steeringWheelTask(const void *pv){
             if(type == 0x02){
             	accValue = data[0];
             } else if(type == 0x03) {
-            	steeringButtonCheck(data[0]);
+            	steeringButtonCheck(data);
             }
           }
           crcAcc = crcExpected = crc = data_pos = end_pos = type = started = pos = 0;
@@ -1998,6 +2074,30 @@ static void sidePanelTask(const void *pv){
     }
     B_uartDoneRead(e);
   }
+}
+
+void serialParse(B_tcpPacket_t *pkt){
+	switch(pkt->sender){
+	case 0x01:
+		  if(pkt->payload[4] == 0x02){
+			  uint32_t value = pkt->payload[7];
+			  value |= (pkt->payload[7] << 8);
+			  if(pkt->payload[5] == 0x01){
+				 // setBBMBBmsAlertType(DISP_BMS_ALERT_BUS_OV, value );
+			  } else if (pkt->payload[5] == 0x02){
+				//  setBBMBBmsAlertType(DISP_BMS_ALERT_BUS_UV, value );
+			  } else if (pkt->payload[6] == 0x03){
+				 // setBBMBBmsAlertType(DISP_BMS_ALERT_CELL_OT, value );
+			  } else if (pkt->payload[7] == 0x04){
+				 // setBBMBBmsAlertType(DISP_BMS_ALERT_CELL_UT, value );
+			  }
+		  }
+		  break;
+	case 0x03:
+		if(pkt->payload[4] == 0x03){
+			disp_setMCMBPulseFreq(pkt->payload[7]);
+		}
+	}
 }
 /* USER CODE END 4 */
 

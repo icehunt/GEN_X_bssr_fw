@@ -46,7 +46,10 @@ B_tcpHandle_t* B_tcpStart(B_uartHandle_t** transmitBuarts,
     B_tcpHandle_t *btcp;
     btcp = pvPortMalloc(sizeof(B_tcpHandle_t));
     btcp->numTransmitBuarts = numTransmitBuarts;
-    btcp->transmitBuarts = transmitBuarts;
+    btcp->transmitBuarts = pvPortMalloc(sizeof(B_tcpHandle_t*)*numTransmitBuarts);
+    for(int i = 0; i < numTransmitBuarts; i++){
+    	btcp->transmitBuarts[i] = transmitBuarts[i];
+    }
     btcp->rxBuart = rxBuart;
     btcp->tcpSeqNum = 0;
     btcp->crc = crc;

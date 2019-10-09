@@ -18,7 +18,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "stm32h7xx_hal.h"
-
+#include "btcp.h"
 extern int f_can_status;
 
 void BSSR_CAN_TEST(FDCAN_HandleTypeDef * hfdcan);
@@ -33,7 +33,7 @@ void BSSR_CAN_Tx(char * data);
 /** A task to handle the transmition */
 void BSSR_CAN_TxTask(void * pvParameters);
 void BSSR_CAN_RxTask(void * pvParameters);
-void BSSR_CAN_TASK_INIT(FDCAN_HandleTypeDef * hfdcan, UART_HandleTypeDef * huart2);
+void BSSR_CAN_TASK_INIT(FDCAN_HandleTypeDef * hfdcan, UART_HandleTypeDef * huart2, B_tcpHandle_t *btcpS);
 void BSSR_CAN_TASK_INIT2(FDCAN_HandleTypeDef * hfdcan);
 void BSSR_CAN_testTask(void * pvParameters);
 
