@@ -38,6 +38,9 @@
 /* USER CODE BEGIN PD */
 #define MOTOR 16
 #define FWD_REV 8
+#define VFM_UP 4
+#define VFM_DOWN 2
+#define VFM_RESET 1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -173,15 +176,16 @@ int main(void)
   MX_SPI3_Init();
   MX_UART8_Init();
   /* USER CODE BEGIN 2 */
+  uint8_t SPI_START_VAL = 0b00010001;
   buart = B_uartStart(&huart4);
-  //radioBuart = B_uartStart(&huart8);
- // B_uartHandle_t * sendBuarts[2] = {buart, radioBuart};
-  btcp = B_tcpStart(&buart, buart, 1, &hcrc);
+  radioBuart = B_uartStart(&huart2);
+  B_uartHandle_t * sendBuarts[2] = {buart, radioBuart};
+  btcp = B_tcpStart(sendBuarts, buart, 2, &hcrc);
   HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET); // Main
   HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13); // Motor LED
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET); // FwdRev
   HAL_GPIO_WritePin(GPIOI, GPIO_PIN_15, GPIO_PIN_SET); // VFM UP
-  HAL_GPIO_WritePin(GPIOI, GPIO_PIN_15, GPIO_PIN_SET); // VFM Down
+  HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_SET); // VFM Down
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET); // ECO
   HAL_GPIO_WritePin(GPIOK, GPIO_PIN_2, GPIO_PIN_SET); // CS0
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET); // CS1
@@ -190,6 +194,17 @@ int main(void)
   HAL_GPIO_WritePin(GPIOF, GPIO_PIN_2, GPIO_PIN_SET); // MT2
   HAL_GPIO_WritePin(GPIOI, GPIO_PIN_9, GPIO_PIN_SET); // MT1
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET); // MT0
+
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_RESET);
+  HAL_SPI_Transmit(&hspi3, &SPI_START_VAL, 1, 100);
+  HAL_SPI_Transmit(&hspi3, &regenValue, 1, 100);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
+
+  HAL_GPIO_WritePin(GPIOK, GPIO_PIN_2, GPIO_PIN_RESET);
+  HAL_SPI_Transmit(&hspi3, &SPI_START_VAL, 1, 100);
+  HAL_SPI_Transmit(&hspi3, &regenValue, 1, 100);
+  HAL_GPIO_WritePin(GPIOK, GPIO_PIN_2, GPIO_PIN_SET);
+
   xTimerStart(xTimerCreate("motorStateTimer", 10, pdTRUE, NULL, motorTmr), 0);
   xTimerStart(xTimerCreate("spdTimer", 500, pdTRUE, NULL, spdTmr), 0);
   HAL_TIM_Base_Start(&htim2);
@@ -209,6 +224,7 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
+#ifdef DEFAULT_TASK
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -217,6 +233,7 @@ int main(void)
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
+#endif
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
@@ -286,13 +303,13 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_D3PCLK1|RCC_CLOCKTYPE_D1PCLK1;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -969,7 +986,7 @@ static void MX_UART4_Init(void)
 
   /* USER CODE END UART4_Init 1 */
   huart4.Instance = UART4;
-  huart4.Init.BaudRate = 230400;
+  huart4.Init.BaudRate = 2000000;
   huart4.Init.WordLength = UART_WORDLENGTH_8B;
   huart4.Init.StopBits = UART_STOPBITS_1;
   huart4.Init.Parity = UART_PARITY_NONE;
@@ -1508,10 +1525,15 @@ static void MX_GPIO_Init(void)
 static void motorTmr(TimerHandle_t xTimer){
 	static uint8_t currentMotorState = 0;
 	static uint8_t currentFwdRevState = 0;
-	static uint8_t currentAccValue = 20;
-	static uint8_t currentRegenValue = 0;
-	static SPI_START_VAL = 0b00010001;
-	if(xTaskGetTickCount() >= (lastDcmbPacket + 100)){
+	static uint8_t currentAccValue = 1;
+	static uint8_t currentRegenValue = 1;
+	static uint8_t SPI_START_VAL = 0b00010001;
+	static uint8_t currentVfmUpState = 0;
+	static uint8_t currentVfmDownState = 0;
+	static uint8_t vfm_up_count = 0;
+	static uint8_t vfm_down_count = 0;
+	static uint8_t vfmCount = 0;
+	if(xTaskGetTickCount() >= (lastDcmbPacket + 500)){
 		accValue = 0; // Just send here instead;
 	}
 	if(currentMotorState != motorState){
@@ -1531,16 +1553,59 @@ static void motorTmr(TimerHandle_t xTimer){
 		}
 		currentFwdRevState = fwdRevState;
 	}
+
 	if(currentAccValue != accValue){
 		HAL_GPIO_WritePin(GPIOK, GPIO_PIN_2, GPIO_PIN_RESET);
-		vTaskDelay(1);
 		uint8_t spi_buf[2] = {SPI_START_VAL, 120};
 		HAL_SPI_Transmit(&hspi3, &SPI_START_VAL, 1, 100);
 		HAL_SPI_Transmit(&hspi3, &accValue, 1, 100);
 		HAL_GPIO_WritePin(GPIOK, GPIO_PIN_2, GPIO_PIN_SET);
 		currentAccValue = accValue;
 	}
+	if(currentRegenValue != regenValue){
+		HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_RESET);
+		HAL_SPI_Transmit(&hspi3, &SPI_START_VAL, 1, 100);
+		HAL_SPI_Transmit(&hspi3, &regenValue, 1, 100);
+		HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
+	}
 
+	if(currentVfmUpState != vfmUpState){
+		if(vfm_up_count == 0 && vfm_down_count == 0 && vfmCount < 8){
+			HAL_GPIO_WritePin(GPIOI, GPIO_PIN_15, GPIO_PIN_RESET);
+			vfm_up_count++;
+			currentVfmUpState = 1;
+		} else if (vfm_up_count < 20){
+			vfm_up_count++;
+		} else if(vfm_up_count == 20){
+			HAL_GPIO_WritePin(GPIOI, GPIO_PIN_15, GPIO_PIN_SET);
+				vfm_up_count++;
+		} else if(vfm_up_count < 40){
+			vfm_up_count++;
+		} else if(vfm_up_count == 40){
+			vfm_up_count = 0;
+			currentVfmUpState = 0;
+			vfmCount++;
+		}
+	}
+
+	if(currentVfmDownState != vfmDownState){
+		if(vfm_up_count == 0 && vfm_down_count == 0 && vfmCount > 0){
+			HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_RESET);
+			vfm_down_count++;
+			currentVfmDownState = 1;
+		} else if (vfm_down_count < 20){
+			vfm_down_count++;
+		} else if(vfm_down_count == 20){
+			HAL_GPIO_WritePin(GPIOI, GPIO_PIN_14, GPIO_PIN_SET);
+				vfm_down_count++;
+		} else if(vfm_down_count < 40){
+			vfm_down_count++;
+		} else if(vfm_down_count == 40){
+			vfm_down_count = 0;
+			currentVfmDownState = 0;
+			vfmCount--;
+		}
+	}
 }
 
 static void spdTmr(TimerHandle_t xTimer){
@@ -1564,6 +1629,8 @@ void serialParse(B_tcpPacket_t *pkt){
 		  regenValue = pkt->payload[7];
 		  motorState = pkt->payload[5] & MOTOR;
 	   	  fwdRevState = pkt->payload[5] & FWD_REV;
+	   	  vfmDownState = pkt->payload[5] & VFM_DOWN;
+	   	  vfmUpState = pkt->payload[5] & VFM_UP;
 	   	  lastDcmbPacket = xTaskGetTickCount();
       }
 	}

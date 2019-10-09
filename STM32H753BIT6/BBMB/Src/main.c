@@ -193,7 +193,7 @@ int main(void)
   buart = B_uartstart(&huart4);
   btcp = B_tcpStart(&buart, buart, 1, &hcrc);
   //badc = B_adcStart(&hadc1, 1);
-  BSSR_CAN_TASK_INIT(&hfdcan1, &huart2);
+  //BSSR_CAN_TASK_INIT(&hfdcan1, &huart2, btcp);
 
 
   xTaskCreate(highPowerTask, "highPowerTask", 1024, NULL, 5, NULL);
@@ -1267,7 +1267,7 @@ static void MX_UART4_Init(void)
 
   /* USER CODE END UART4_Init 1 */
   huart4.Instance = UART4;
-  huart4.Init.BaudRate = 230400;
+  huart4.Init.BaudRate = 2000000;
   huart4.Init.WordLength = UART_WORDLENGTH_8B;
   huart4.Init.StopBits = UART_STOPBITS_1;
   huart4.Init.Parity = UART_PARITY_NONE;
@@ -1363,7 +1363,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = 2000000;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -1797,6 +1797,7 @@ static void adcTask(const void *pv){
 	  buf = pvPortMalloc(sizeof(uint8_t)*20);
 	  HAL_ADC_Start(&hadc1);
 	  HAL_ADC_PollForConversion(&hadc1, 100);
+	  bat_current = HAL_ADC_GetValue(&hadc1);
 	  adc_current = (double) (HAL_ADC_GetValue(&hadc1) -31000);
 	  adc_current = adc_current * 3 * 1000;
 	  bat_current = (uint32_t) adc_current;

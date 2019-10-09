@@ -52,7 +52,8 @@
 #define RIGHT_SIG 16
 #define HORN 128
 #define DPAD_DOWN 1
-
+#define DPAD_LEFT 2
+#define DPAD_RIGHT 8
 uint8_t LEFT_ENABLED = 0;
 uint8_t RIGHT_ENABLED = 0;
 uint8_t CENTER_ENABLED = 0;
@@ -102,6 +103,7 @@ DMA_HandleTypeDef hdma_uart4_rx;
 DMA_HandleTypeDef hdma_uart8_rx;
 DMA_HandleTypeDef hdma_uart8_tx;
 DMA_HandleTypeDef hdma_usart2_tx;
+DMA_HandleTypeDef hdma_usart2_rx;
 DMA_HandleTypeDef hdma_usart3_rx;
 DMA_HandleTypeDef hdma_usart3_tx;
 
@@ -121,6 +123,8 @@ uint8_t accValue = 0;
 uint8_t brakeStatus = 0;
 uint8_t motorState = 0;
 uint8_t fwdRevState = 0;
+uint8_t vfmUpState = 0;
+uint8_t vfmDownState = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -208,7 +212,7 @@ int main(void)
   displayInit();
   xTimerStart(xTimerCreate("lightsTimer", 666, pdTRUE, NULL, lightsTmr), 0);
   xTimerStart(xTimerCreate("mc2StateTimer", 20, pdTRUE, NULL, mc2StateTmr), 0);
-  //xTimerStart(xTimerCreate("display", 100, pdTRUE, 0, displayTmr), 0);
+  xTimerStart(xTimerCreate("display", 100, pdTRUE, 0, displayTmr), 0);
   buart = B_uartstart(&huart4);
   spbBuart = B_uartstart(&huart3);
   swBuart = B_uartstart(&huart8);
@@ -1413,6 +1417,9 @@ static void MX_DMA_Init(void)
   /* DMA2_Stream0_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
 
 }
 
@@ -1766,6 +1773,14 @@ static void mc2StateTmr(TimerHandle_t xTimer){
 		}
 		buf[1] = motorState << 4;
 		buf[1] |= fwdRevState << 3;
+		buf[1] |= vfmUpState << 2;
+		buf[1] |= vfmDownState << 1;
+		if(vfmUpState == 1){
+			vfmUpState = 0;
+		}
+		if(vfmDownState == 1){
+			vfmDownState = 0;
+		}
 		buf[2] = outputVal;
 //		HAL_UART_Transmit_IT(&huart2, buf2, strlen(buf2));
 		// TODO other buttons
@@ -1889,21 +1904,27 @@ static void buttonCheck(uint8_t state){
   prev_data = data;
 }
 
-static void steeringButtonCheck(uint8_t state){
+static void steeringButtonCheck(uint8_t *state){
 	static long motor_press_time = 0;
 	static uint8_t motor_pressed = 0;
 	static uint8_t motor_state = 0;
 	static uint8_t buf[2];
-	if(!(state&DPAD_DOWN)){
+	static uint8_t horn_on = 0;
+	static uint8_t vfm_up_pressed = 0;
+	static long vfm_up_press_time = 0;
+	static uint8_t vfm_down_pressed = 0;
+	static long vfm_down_press_time = 0;
+	static long last_vfm_change_time = 0;
+	if(!(state[0]&DPAD_DOWN)){
 		if(motor_press_time == 0){
 			motor_press_time = xTaskGetTickCount();
 		} else if((motor_press_time + 1000 < xTaskGetTickCount()) && motor_pressed == 0){
-			if(ignition_state != (uint8_t) 1){
-				motor_pressed = 0;
-				motor_press_time = 0;
-				return;
-			}
-
+//			if(ignition_state != (uint8_t) 1){
+//				motor_pressed = 0;
+//				motor_press_time = 0;
+//				return;
+//			}
+			motor_pressed = 0;
 			motor_press_time = 0;
 			motor_state ^= 1;
 			motorState = motor_state;
@@ -1913,6 +1934,48 @@ static void steeringButtonCheck(uint8_t state){
 		motor_press_time = 0;
 		motor_pressed = 0;
 	}
+	if(!(state[0]&HORN)){
+	  if(!horn_on){
+        uint8_t bufh[2] = {0x04, 0x01};
+	    B_tcpSend(btcp, bufh, 2);
+	    horn_on = 1;
+	  }
+	} else if (horn_on){
+      uint8_t bufh2[2] = {0x04, 0x00};
+	  B_tcpSend(btcp, bufh2, 2);
+	  horn_on = 0;
+	}
+
+	if(!(state[0]&DPAD_LEFT)){
+		if(vfm_up_press_time == 0){
+			vfm_up_press_time = xTaskGetTickCount();
+		} else if ((vfm_up_press_time + 1000 < xTaskGetTickCount()) && vfm_up_pressed == 0){
+			vfm_up_press_time = 0;
+			if(last_vfm_change_time + 500 < xTaskGetTickCount()){
+				vfmUpState ^= 1;
+				last_vfm_change_time = xTaskGetTickCount();
+			}
+		}
+	} else {
+		vfm_up_press_time = 0;
+		vfm_up_pressed = 0;
+	}
+
+	if(!(state[0]&DPAD_RIGHT)){
+		if(vfm_down_press_time == 0){
+			vfm_down_press_time = xTaskGetTickCount();
+		} else if ((vfm_down_press_time + 1000 < xTaskGetTickCount()) && vfm_down_pressed == 0){
+			vfm_down_press_time = 0;
+			if(last_vfm_change_time + 500 < xTaskGetTickCount()){
+				vfmDownState ^= 1;
+				last_vfm_change_time = xTaskGetTickCount();
+			}
+		}
+	} else {
+		vfm_down_press_time = 0;
+		vfm_down_pressed = 0;
+	}
+
 }
 static void steeringWheelTask(const void *pv){
   B_uartHandle_t *buart = pv;
@@ -1956,7 +2019,7 @@ static void steeringWheelTask(const void *pv){
             if(type == 0x02){
             	accValue = data[0];
             } else if(type == 0x03) {
-            	steeringButtonCheck(data[0]);
+            	steeringButtonCheck(data);
             }
           }
           crcAcc = crcExpected = crc = data_pos = end_pos = type = started = pos = 0;

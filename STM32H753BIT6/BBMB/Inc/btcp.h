@@ -4,6 +4,8 @@
 
 #define MAX_PACKET_SIZE 256
 
+#ifndef BTCP_DEF_H
+#define BTCP_DEF_H
 typedef struct {
     uint8_t length;
     uint8_t sender;
@@ -28,3 +30,4 @@ B_tcpHandle_t* B_tcpStart(B_uartHandle_t** transmitBuarts,
                             uint8_t numTransmitBuarts,
                             CRC_HandleTypeDef* crc);
 void serialParse(B_tcpPacket_t *pkt);
+#endif

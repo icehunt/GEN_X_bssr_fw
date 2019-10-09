@@ -1,15 +1,17 @@
 #include "BSSR_CAN_H7.h"
 #include "stm32h7xx_hal.h"
 #include "cmsis_os.h"
+#include "semphr.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "btcp.h"
 #define DEBUG_ON
 
-#define MAX_TEMP 313000
-#define MIN_TEMP 273000
-#define MIN_VOLTAGE 3180
-#define MAX_VOLTAGE 3500
+#define MAX_TEMP 333000
+#define MIN_TEMP 0
+#define MIN_VOLTAGE 0
+#define MAX_VOLTAGE 4200
 
 static FDCAN_FilterTypeDef filterConfig;
 static FDCAN_TxHeaderTypeDef txHeader;
@@ -25,14 +27,26 @@ static QueueHandle_t xCanRxQueue = NULL;
 static char msg[CAN_ITEM_SIZE + 1] = {0};
 static char buffer[100];
 static int boardId, cellId, voltage, temp;
-
+B_tcpHandle_t *btcp;
 static volatile double fake_rand() {
     static int seed = 1;
     const static int a = 1627, b = 2549, m = 10000;
     seed = (seed * a + b) % m;
     return seed / m;
 }
+typedef struct {
+	uint16_t maxVoltage;
+	uint16_t maxTemp;
+	uint16_t minVoltage;
+	uint16_t minTemp;
+	uint16_t numSamples;
+	uint32_t aggTemp;
+	uint32_t aggVoltage;
+	SemaphoreHandle_t cellSem;
+	uint8_t fucky;
+}CellInfo_t;
 
+CellInfo_t cells[30];
 static void BSSR_CAN_Error(char *msg, FDCAN_HandleTypeDef * hfdcan) {
     char buffer[128];
     sprintf(buffer, "CAN TASK: %s\r\n", msg);
@@ -74,15 +88,73 @@ static inline void BSSR_CAN_Status_Log(FDCAN_HandleTypeDef * hfdcan) {
     }
 #endif // DEBUG
 }
+static void writeCell(uint8_t *buf, uint8_t cell_id){
+	CellInfo_t *cell = &(cells[cell_id]);
+	xSemaphoreTake(cell->cellSem, 1);
+	buf[1] = cell_id;
+	buf[2] = (cell->numSamples >> 8) & 0xff;
+	buf[3] = cell->numSamples & 0xff;
+	cell->numSamples = 0;
+	buf[4] = (cell->aggTemp >> 24) & 0xff;
+	buf[5] = (cell->aggTemp >> 16) & 0xff;
+	buf[6] = (cell->aggTemp >> 8) & 0xff;
+	buf[7] = (cell->aggTemp) & 0xff;
+	cell->aggTemp = 0;
+	buf[8] = (cell->aggVoltage >> 24) & 0xff;
+	buf[9] = (cell->aggVoltage >> 16) & 0xff;
+	buf[10] = (cell->aggVoltage >> 8) & 0xff;
+	buf[11] = (cell->aggVoltage) & 0xff;
+	cell->aggVoltage = 0;
+	buf[12] = (cell->maxTemp >> 8) & 0xff;
+	buf[13] = (cell->maxTemp) &0xff;
+	buf[14] = (cell->minTemp >> 8) &0xff;
+	buf[15] = (cell->minTemp) &0xff;
+	buf[16] = (cell->maxVoltage >> 8) &0xff;
+	buf[17] = (cell->maxVoltage) &0xff;
+	buf[18] = (cell->minVoltage >> 8) &0xff;
+	buf[19] = (cell->minVoltage) &0xff;
+	xSemaphoreGive(cells[cell_id].cellSem);
+}
 
-void BSSR_CAN_TASK_INIT(FDCAN_HandleTypeDef * hfdcan, UART_HandleTypeDef * huart2) {
+static void cellStateTmr(TimerHandle_t xTimer){
+	uint8_t packet[200];
+	//uint8_t packet_pos = 1;
+	packet[0] = 1;
+	for(int i = 0; i < 3; i++){
+		for(int j = 0 + i*10; j < (i+1)*10; j++){
+			writeCell(packet+(j*20), i*10 + j);
+		}
+		B_tcpSend(btcp, packet, 200);
+	}
+}
+void BSSR_CAN_TASK_INIT(FDCAN_HandleTypeDef * hfdcan, UART_HandleTypeDef * huart2, B_tcpHandle_t *btcpS) {
     fdcan = hfdcan;
+    btcp = btcpS;
     uart = huart2;
     BSSR_CAN_START();
     dataCnt = 0;
     // BSSR_CAN_Log("CAN TxTask Started!");
     // xTaskCreate(BSSR_CAN_TxTask, "CanTxTask", configMINIMAL_STACK_SIZE, NULL, CAN_QUEUE_SEND_TASK_PRIORITY, NULL);
     xTaskCreate(BSSR_CAN_RxTask, "CanRxTask", configMINIMAL_STACK_SIZE, NULL, CAN_QUEUE_RECEIVE_TASK_PRIORITY, NULL);
+    xTimerStart(xTimerCreate("cellTmr", 150, pdTRUE, NULL, cellStateTmr), 0);
+
+    for(int i = 0; i < 30; i++){
+    	cells[i].aggTemp = 0;
+    	cells[i].aggVoltage = 0;
+    	cells[i].maxTemp = 0;
+    	cells[i].maxVoltage = 0;
+    	cells[i].minTemp = 0;
+    	cells[i].minVoltage = 0;
+    	cells[i].numSamples = 0;
+    	cells[i].cellSem = xSemaphoreCreateMutex();
+
+    }
+    uint8_t fucky[1] = {4};
+    for(int i = 0; i < 0; i++){
+    	cells[i].fucky = 1;
+    }
+
+
 }
 
 void BSSR_CAN_START() {
@@ -331,24 +403,49 @@ void getTempVoltData(FDCAN_HandleTypeDef *hfdcan) {
         temp = *(int *)(msg+4);
 
         // filter out wrong data
+        uint8_t cellNum = (boardId-1)*5 + cellId;
+        xSemaphoreTake(cells[cellNum].cellSem, 1);
+        cells[cellNum].aggTemp += temp;
+        cells[cellNum].aggVoltage += voltage;
+        cells[cellNum].numSamples++;
+        xSemaphoreGive(cells[cellNum].cellSem);
         if (!(voltage > 7000 || voltage < 2200 || temp > 373000 || temp < 220000)) {
 
-            sprintf(buffer, "MSG ID=0o%04o, CONTENT=0x%02x%02x%02x%02x%02x%02x%02x%02x, boardId=%d, cellId=%d, voltage=%d, temp=%d", 
-                rxHeader.Identifier, 
-                *(uint8_t *)(msg+7), *(uint8_t *)(msg+6), *(uint8_t *)(msg+5), *(uint8_t *)(msg+4),
-                *(uint8_t *)(msg+3), *(uint8_t *)(msg+2), *(uint8_t *)(msg+1), *(uint8_t *)(msg+0),
-                boardId, cellId, voltage, (temp-273150));
+           // sprintf(buffer, "MSG ID=0o%04o, CONTENT=0x%02x%02x%02x%02x%02x%02x%02x%02x, boardId=%d, cellId=%d, voltage=%d, temp=%d",
+//                rxHeader.Identifier,
+//                *(uint8_t *)(msg+7), *(uint8_t *)(msg+6), *(uint8_t *)(msg+5), *(uint8_t *)(msg+4),
+//                *(uint8_t *)(msg+3), *(uint8_t *)(msg+2), *(uint8_t *)(msg+1), *(uint8_t *)(msg+0),
+//                boardId, cellId, voltage, (temp-273150));
             if(voltage > MAX_VOLTAGE || voltage < MIN_VOLTAGE || temp > MAX_TEMP || temp < MIN_TEMP){
                 // Trigger BSD
                 HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_RESET);
+                uint8_t buf[4] = {0x02, 0x00, 0x00, 0x00};
+                if(voltage > MAX_VOLTAGE){
+                	buf[1] = 0x01;
+                	buf[2] = (voltage >> 8) &0xff;
+                	buf[3] = voltage &0xff;
+                } else if (voltage < MIN_VOLTAGE){
+                	buf[1] = 0x02;
+                	buf[2] = (voltage >> 8) &0xff;
+                	buf[3] = voltage &0xff;
+                } else if (temp > MAX_TEMP){
+                	buf[1] = 0x03;
+                	buf[2] = (temp >> 8) &0xff;
+                	buf[3] = temp & 0xff;
+                } else if (temp < MIN_TEMP){
+                	buf[1] = 0x04;
+                	buf[2] = (temp >> 8) &0xff;
+                	buf[3] = temp & 0xff;
+                }
+                B_tcpSend(btcp, buf, 4);
                 //HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_SET);
-                HAL_UART_Transmit_IT(uart, buffer, strlen(buffer));
-                HAL_UART_Transmit_IT(uart, "CAN TRIPPED\r\n", strlen("CAN TRIPPED\r\n"));
+                //HAL_UART_Transmit_IT(uart, buffer, strlen(buffer));
+                //HAL_UART_Transmit_IT(uart, "CAN TRIPPED\r\n", strlen("CAN TRIPPED\r\n"));
 
             }
-            BSSR_CAN_Log(buffer);
+            //BSSR_CAN_Log(buffer);
         } else {
-            BSSR_CAN_Log("Error in Reading");
+            //BSSR_CAN_Log("Error in Reading");
         }
     }
 }
