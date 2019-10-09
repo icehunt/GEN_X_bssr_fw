@@ -175,7 +175,7 @@ int main(void)
   MX_RTC_Init();
   MX_USART3_UART_Init();
   MX_UART8_Init();
-  MX_SPI2_Init();
+  MX_SPI3_Init();
   MX_ADC1_Init();
   MX_TIM12_Init();
   MX_TIM1_Init();
@@ -376,7 +376,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_ONESHOT;
+  hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
   hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
   hadc1.Init.OversamplingMode = DISABLE;
@@ -1800,7 +1800,7 @@ static void adcTask(const void *pv){
 	  bat_current = HAL_ADC_GetValue(&hadc1);
 	  adc_current = (double) (HAL_ADC_GetValue(&hadc1) -31000);
 	  adc_current = adc_current * 3 * 1000;
-	  bat_current = (uint32_t) adc_current;
+	  //bat_current = (uint32_t) adc_current;
 	  HAL_ADC_Stop(&hadc1);
     //HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
@@ -1811,6 +1811,7 @@ static void adcTask(const void *pv){
     //spi_in = ~spi_in;
     voltage = ((int64_t)spi_in*5*1000*41);
     voltage = voltage >> 15;
+    voltage = spi_in;
     //sprintf(buf, "SPI IN:%d mv\r\n", voltage);
     #ifdef SPI_DEBUG
     HAL_UART_Transmit_IT(&huart2, buf, strlen(buf));
