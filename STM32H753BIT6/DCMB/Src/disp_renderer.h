@@ -19,6 +19,8 @@ void displayTmr(void* pv);
 void disp_setMCMBPulseFreq(uint32_t hz); // critical
 void disp_setMCMBSpeedUnit(uint8_t pi);
 void disp_setMCMBDispState(uint32_t x);
+void disp_setMCMBPwrEco(uint8_t pwr);
+void disp_setMCMBFwdRev(uint8_t fwd);
 void disp_setBBMBBusVoltage(uint32_t mv); // critical
 void disp_setBBMBBusCurrent(uint32_t ma); // critical
 void disp_setBBMBBmsAlertType(uint8_t type, uint32_t val); // critical
@@ -40,6 +42,9 @@ void disp_attachDriverAckCallback(void(*cb)(uint8_t x));
 void disp_attachVfmUpCallback(void(*cb)(void));
 void disp_attachVfmDownCallback(void(*cb)(void));
 void disp_attachVfmResetCallback(void(*cb)(void));
+void disp_attachAccResetCallback(void(*cb)(void));
+void disp_attachRegenResetCallback(void(*cb)(void));
+void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, uint8_t sel, int16_t enc);
 
 enum{
 	DISP_BMS_ALERT_RESET = 0b00000000,
