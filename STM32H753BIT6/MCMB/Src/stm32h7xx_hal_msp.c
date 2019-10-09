@@ -738,38 +738,6 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM5_MspInit 1 */
   }
-  else if(htim_encoder->Instance==TIM8)
-  {
-  /* USER CODE BEGIN TIM8_MspInit 0 */
-
-  /* USER CODE END TIM8_MspInit 0 */
-    /* Peripheral clock enable */
-    __HAL_RCC_TIM8_CLK_ENABLE();
-  
-    __HAL_RCC_GPIOJ_CLK_ENABLE();
-    __HAL_RCC_GPIOI_CLK_ENABLE();
-    /**TIM8 GPIO Configuration    
-    PJ8     ------> TIM8_CH1
-    PI6     ------> TIM8_CH2 
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_8;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF3_TIM8;
-    HAL_GPIO_Init(GPIOJ, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = GPIO_PIN_6;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF3_TIM8;
-    HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN TIM8_MspInit 1 */
-
-  /* USER CODE END TIM8_MspInit 1 */
-  }
 
 }
 
@@ -896,26 +864,6 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
 
   /* USER CODE END TIM5_MspDeInit 1 */
   }
-  else if(htim_encoder->Instance==TIM8)
-  {
-  /* USER CODE BEGIN TIM8_MspDeInit 0 */
-
-  /* USER CODE END TIM8_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_TIM8_CLK_DISABLE();
-  
-    /**TIM8 GPIO Configuration    
-    PJ8     ------> TIM8_CH1
-    PI6     ------> TIM8_CH2 
-    */
-    HAL_GPIO_DeInit(GPIOJ, GPIO_PIN_8);
-
-    HAL_GPIO_DeInit(GPIOI, GPIO_PIN_6);
-
-  /* USER CODE BEGIN TIM8_MspDeInit 1 */
-
-  /* USER CODE END TIM8_MspDeInit 1 */
-  }
 
 }
 
@@ -1001,24 +949,16 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     __HAL_RCC_UART8_CLK_ENABLE();
   
     __HAL_RCC_GPIOJ_CLK_ENABLE();
-    __HAL_RCC_GPIOE_CLK_ENABLE();
     /**UART8 GPIO Configuration    
-    PJ9     ------> UART8_RX
-    PE1     ------> UART8_TX 
+    PJ8     ------> UART8_TX
+    PJ9     ------> UART8_RX 
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_9;
+    GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF8_UART8;
     HAL_GPIO_Init(GPIOJ, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = GPIO_PIN_1;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF8_UART8;
-    HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
     /* UART8 DMA Init */
     /* UART8_RX Init */
@@ -1030,7 +970,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     hdma_uart8_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
     hdma_uart8_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
     hdma_uart8_rx.Init.Mode = DMA_CIRCULAR;
-    hdma_uart8_rx.Init.Priority = DMA_PRIORITY_LOW;
+    hdma_uart8_rx.Init.Priority = DMA_PRIORITY_MEDIUM;
     hdma_uart8_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
     if (HAL_DMA_Init(&hdma_uart8_rx) != HAL_OK)
     {
@@ -1048,7 +988,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     hdma_uart8_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
     hdma_uart8_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
     hdma_uart8_tx.Init.Mode = DMA_NORMAL;
-    hdma_uart8_tx.Init.Priority = DMA_PRIORITY_LOW;
+    hdma_uart8_tx.Init.Priority = DMA_PRIORITY_MEDIUM;
     hdma_uart8_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
     if (HAL_DMA_Init(&hdma_uart8_tx) != HAL_OK)
     {
@@ -1172,12 +1112,10 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
     __HAL_RCC_UART8_CLK_DISABLE();
   
     /**UART8 GPIO Configuration    
-    PJ9     ------> UART8_RX
-    PE1     ------> UART8_TX 
+    PJ8     ------> UART8_TX
+    PJ9     ------> UART8_RX 
     */
-    HAL_GPIO_DeInit(GPIOJ, GPIO_PIN_9);
-
-    HAL_GPIO_DeInit(GPIOE, GPIO_PIN_1);
+    HAL_GPIO_DeInit(GPIOJ, GPIO_PIN_8|GPIO_PIN_9);
 
     /* UART8 DMA DeInit */
     HAL_DMA_DeInit(huart->hdmarx);
