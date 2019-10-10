@@ -54,6 +54,7 @@
 #define DPAD_DOWN 1
 #define DPAD_LEFT 2
 #define DPAD_RIGHT 8
+#define DPAD_UP 32 // TODO
 uint8_t LEFT_ENABLED = 0;
 uint8_t RIGHT_ENABLED = 0;
 uint8_t CENTER_ENABLED = 0;
@@ -160,6 +161,10 @@ static void sidePanelTask(const void *pv);
 static void steeringWheelTask(const void *pv);
 static void lightsTmr(TimerHandle_t xTimer);
 static void mc2StateTmr(TimerHandle_t xTimer);
+static void motCallback(uint8_t motState);
+static void vfmUpCallback();
+static void vfmDownCallback();
+static void accResetCallback();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -219,7 +224,10 @@ int main(void)
   btcp = B_tcpStart(&buart, buart, 1, &hcrc);
   xTaskCreate(sidePanelTask, "SidePanelTask", 1024, spbBuart, 3, NULL);
   xTaskCreate(steeringWheelTask, "SteeringWheelTask", 1024, swBuart, 5, NULL);
-
+  disp_attachMotOnCallback(motCallback);
+  disp_attachVfmUpCallback(vfmUpCallback);
+  disp_attachVfmDownCallback(vfmDownCallback);
+  disp_attachAccResetCallback(accResetCallback);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -1674,6 +1682,27 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void accResetCallback(){
+	brakeStatus = 1;
+}
+static void vfmUpCallback(){
+	static long lastVfmChange = 0;
+	if(xTaskGetTickCount() > lastVfmChange + 500){
+		lastVfmChange = xTaskGetTickCount();
+		vfmUpState = 1;
+	}
+}
+static void vfmDownCallback(){
+	static long lastVfmChange = 0;
+	if(xTaskGetTickCount() > lastVfmChange + 500){
+		lastVfmChange = xTaskGetTickCount();
+		vfmDownState = 1;
+	}
+}
+static void motCallback(uint8_t motState){
+	motorState =  motState;
+}
+
 static void lightsTmr(TimerHandle_t xTimer){
   static uint8_t current_state = 0;
   static uint8_t buf[4] = {0x03, 0x00, 0x00, 0x00};
@@ -1975,6 +2004,7 @@ static void steeringButtonCheck(uint8_t *state){
 		vfm_down_press_time = 0;
 		vfm_down_pressed = 0;
 	}
+	//disp_updateNavState(!(state[0]&DPAD_UP), !(state[0]&DPAD_DOWN), !(state[0]&DPAD_LEFT), !(state[0]&DPAD_RIGHT), !(state[1]), state[2]);
 
 }
 static void steeringWheelTask(const void *pv){

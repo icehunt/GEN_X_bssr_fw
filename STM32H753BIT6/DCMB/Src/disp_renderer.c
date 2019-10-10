@@ -88,7 +88,7 @@ static struct state{
 	uint8_t lastRight :1;
 	uint8_t lastSel :1;
 	uint8_t mta :4;
-	uint8_t vfm :3;
+	uint8_t vfm :4;
 	uint8_t battOn :1;
 	uint8_t arrOn :1;
 	uint8_t motOn :1;
@@ -503,6 +503,7 @@ void displayInit(){
 	disp_drv->rounder_cb = my_rounder_cb;
 	lv_disp_drv_register(disp_drv);
 	createObjects();
+	showMotPage(0);
 	state.vfm = 1;
 //	xSemaphoreGive(dispMtx);
 }
@@ -774,7 +775,7 @@ void disp_setDCMBArrayIgnitionState(uint32_t on){
 }
 void disp_setDCMBMotIgnitionState(uint32_t on){
 	state.motOn = on;
-	updateMotOnSw();
+	//updateMotOnSw();
 	updateGearLabel();
 	if(!on){
 		state.vfm = 1;

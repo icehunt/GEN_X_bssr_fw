@@ -45,6 +45,7 @@ void disp_attachVfmResetCallback(void(*cb)(void));
 void disp_attachAccResetCallback(void(*cb)(void));
 void disp_attachRegenResetCallback(void(*cb)(void));
 void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, uint8_t sel, int16_t enc);
+void disp_attachMotOnCallback(void(*cb)(uint8_t on));
 
 enum{
 	DISP_BMS_ALERT_RESET = 0b00000000,
