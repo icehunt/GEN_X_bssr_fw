@@ -140,8 +140,7 @@ static void initStyles(){
 	screenStl.text.font = &Hack_8_2FA1F;
 	// Indicator Bar Style
 	lv_style_copy(&barStl, &lv_style_transp_tight);
-	barStl.body.main_color = lv_color_hex3(0x0a0);
-	barStl.text.font = &Hack_8_2FA1F;
+	barStl.body.main_color = lv_color_hex3(0xaaa);
 	// Big Number
 	lv_style_copy(&bigNumStl, &lv_style_transp_tight);
 	bigNumStl.body.main_color = lv_color_hex3(0x000);
@@ -213,37 +212,37 @@ static void initStyles(){
 //##     ## ##     ## ##    ## ##       ##    ##    ##    ##    ##
 // #######  ########   ######  ########  ######     ##     ######
 
-static lv_obj_t* backgroundImg;
-static lv_obj_t* bigSpeedLabel;
-static lv_obj_t* bigUnitLabel;
-static lv_obj_t* targetSpeedLabel;
-static lv_obj_t* battPwrLabel;
-static lv_obj_t* arrayPwrLabel;
-static lv_obj_t* bmsAlertMessageLabel;
-static lv_obj_t* accPositionObj;
-static lv_obj_t* gearTxtLabel;
-static lv_obj_t* mainVfmLabel;
-static lv_obj_t* motOnLabel;
-static lv_obj_t* leftArrowImg;
-static lv_obj_t* rightArrowImg;
-static lv_obj_t* stopSignImg;
-static lv_obj_t* triangleSignImg;
+static lv_obj_t* backgroundImg = NULL;
+static lv_obj_t* bigSpeedLabel = NULL;
+static lv_obj_t* bigUnitLabel = NULL;
+static lv_obj_t* targetSpeedLabel = NULL;
+static lv_obj_t* battPwrLabel = NULL;
+static lv_obj_t* arrayPwrLabel = NULL;
+static lv_obj_t* bmsAlertMessageLabel = NULL;
+static lv_obj_t* accPositionObj = NULL;
+static lv_obj_t* gearTxtLabel = NULL;
+static lv_obj_t* mainVfmLabel = NULL;
+static lv_obj_t* motOnLabel = NULL;
+static lv_obj_t* leftArrowImg = NULL;
+static lv_obj_t* rightArrowImg = NULL;
+static lv_obj_t* stopSignImg = NULL;
+static lv_obj_t* triangleSignImg = NULL;
 static lv_obj_t* mainPageLedBar[11];
 static lv_obj_t** mainPageObjs[] = {&backgroundImg,&bigSpeedLabel,&bigUnitLabel,&targetSpeedLabel,&battPwrLabel,&arrayPwrLabel,&bmsAlertMessageLabel,&accPositionObj,&gearTxtLabel,&motOnLabel,&leftArrowImg,&rightArrowImg,&stopSignImg,&triangleSignImg};
-static lv_obj_t* motBgImg;
-static lv_obj_t* motVfmLabel;
-static lv_obj_t* motLcdLabel;
-static lv_obj_t* motMtaLabel;
-static lv_obj_t* motFwdImg;
-static lv_obj_t* motRevImg;
-static lv_obj_t* motPwrImg;
-static lv_obj_t* motEcoImg;
-static lv_obj_t* motOnImg;
-static lv_obj_t* motOffImg;
-static lv_obj_t* motAccArc;
-static lv_obj_t* motRegenArc;
-static lv_obj_t* motAccLabel;
-static lv_obj_t* motRegenLabel;
+static lv_obj_t* motBgImg = NULL;
+static lv_obj_t* motVfmLabel = NULL;
+static lv_obj_t* motLcdLabel = NULL;
+static lv_obj_t* motMtaLabel = NULL;
+static lv_obj_t* motFwdImg = NULL;
+static lv_obj_t* motRevImg = NULL;
+static lv_obj_t* motPwrImg = NULL;
+static lv_obj_t* motEcoImg = NULL;
+static lv_obj_t* motOnImg = NULL;
+static lv_obj_t* motOffImg = NULL;
+static lv_obj_t* motAccArc = NULL;
+static lv_obj_t* motRegenArc = NULL;
+static lv_obj_t* motAccLabel = NULL;
+static lv_obj_t* motRegenLabel = NULL;
 static lv_obj_t* motPageLedBar[11];
 static lv_obj_t** motPageObjs[] = {&motBgImg,&motVfmLabel,&motLcdLabel,&motMtaLabel,&motFwdImg,&motRevImg,&motPwrImg,&motEcoImg,&motOnImg,&motOffImg,&motAccArc,&motRegenArc,&motAccLabel,&motRegenLabel};
 
@@ -377,35 +376,35 @@ static void createObjects(){
 	lv_label_set_align(motRegenLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(motRegenLabel, 231, 40);
 
-	motFwdImg = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(motFwdImg, &DISP_left_arrow);
-	lv_obj_set_pos(motFwdImg, 149, 6);
-	lv_obj_set_hidden(motFwdImg, 1);
+//	motFwdImg = lv_img_create(lv_scr_act(), NULL);
+//	lv_img_set_src(motFwdImg, &DISP_left_arrow);
+//	lv_obj_set_pos(motFwdImg, 149, 6);
+//	lv_obj_set_hidden(motFwdImg, 1);
 
-	motRevImg = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(motRevImg, &DISP_left_arrow);
-	lv_obj_set_pos(motRevImg, 149, 6);
-	lv_obj_set_hidden(motRevImg, 1);
+//	motRevImg = lv_img_create(lv_scr_act(), NULL);
+//	lv_img_set_src(motRevImg, &DISP_left_arrow);
+//	lv_obj_set_pos(motRevImg, 149, 6);
+//	lv_obj_set_hidden(motRevImg, 1);
 
-	motPwrImg = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(motPwrImg, &DISP_left_arrow);
-	lv_obj_set_pos(motPwrImg, 149, 6);
-	lv_obj_set_hidden(motPwrImg, 1);
+//	motPwrImg = lv_img_create(lv_scr_act(), NULL);
+//	lv_img_set_src(motPwrImg, &DISP_left_arrow);
+//	lv_obj_set_pos(motPwrImg, 149, 6);
+//	lv_obj_set_hidden(motPwrImg, 1);
 
-	motEcoImg = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(motEcoImg, &DISP_left_arrow);
-	lv_obj_set_pos(motEcoImg, 149, 6);
-	lv_obj_set_hidden(motEcoImg, 1);
+//	motEcoImg = lv_img_create(lv_scr_act(), NULL);
+//	lv_img_set_src(motEcoImg, &DISP_left_arrow);
+//	lv_obj_set_pos(motEcoImg, 149, 6);
+//	lv_obj_set_hidden(motEcoImg, 1);
 
-	motOnImg = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(motOnImg, &DISP_left_arrow);
-	lv_obj_set_pos(motOnImg, 149, 6);
-	lv_obj_set_hidden(motOnImg, 1);
+//	motOnImg = lv_img_create(lv_scr_act(), NULL);
+//	lv_img_set_src(motOnImg, &DISP_left_arrow);
+//	lv_obj_set_pos(motOnImg, 149, 6);
+//	lv_obj_set_hidden(motOnImg, 1);
 
-	motOffImg = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(motOffImg, &DISP_left_arrow);
-	lv_obj_set_pos(motOffImg, 149, 6);
-	lv_obj_set_hidden(motOffImg, 1);
+//	motOffImg = lv_img_create(lv_scr_act(), NULL);
+//	lv_img_set_src(motOffImg, &DISP_left_arrow);
+//	lv_obj_set_pos(motOffImg, 149, 6);
+//	lv_obj_set_hidden(motOffImg, 1);
 
 	motAccArc = lv_arc_create(lv_scr_act(), NULL);
 	lv_arc_set_style(motAccArc, LV_ARC_STYLE_MAIN, &motAccArcStl);
@@ -862,6 +861,7 @@ void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, 
 			downEdge = upEdge = leftEdge = rightEdge = selEdge = state.encAcc = 0;
 		}else if(downEdge == 1 || upEdge == 1 || leftEdge == 1 || rightEdge == 1 || state.encAcc >= 2 || state.encAcc <= -2){
 			state.motOnWindow = 0;
+			updateMotOnBox();
 			downEdge = upEdge = leftEdge = rightEdge = selEdge = state.encAcc = 0;
 		}
 	}else{
@@ -876,12 +876,14 @@ void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, 
 		if(state.encAcc >= 2){
 			state.encAcc = 0;
 			if(state.page == 0){
+				state.page = 1;
 				showMainPage(0);
 				showMotPage(1);
 			}
 		}else if(state.encAcc <= -2){
 			state.encAcc = 0;
 			if(state.page == 1){
+				state.page = 0;
 				showMotPage(0);
 				showMainPage(1);
 			}
