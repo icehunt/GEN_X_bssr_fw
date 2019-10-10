@@ -54,7 +54,7 @@
 #define DPAD_DOWN 1
 #define DPAD_LEFT 2
 #define DPAD_RIGHT 8
-#define DPAD_UP 32 // TODO
+#define DPAD_UP 4
 uint8_t LEFT_ENABLED = 0;
 uint8_t RIGHT_ENABLED = 0;
 uint8_t CENTER_ENABLED = 0;
@@ -217,7 +217,7 @@ int main(void)
   displayInit();
   xTimerStart(xTimerCreate("lightsTimer", 666, pdTRUE, NULL, lightsTmr), 0);
   xTimerStart(xTimerCreate("mc2StateTimer", 20, pdTRUE, NULL, mc2StateTmr), 0);
-  xTimerStart(xTimerCreate("display", 100, pdTRUE, 0, displayTmr), 0);
+  xTimerStart(xTimerCreate("display", 200, pdTRUE, 0, displayTmr), 0);
   buart = B_uartstart(&huart4);
   spbBuart = B_uartstart(&huart3);
   swBuart = B_uartstart(&huart8);
@@ -1879,6 +1879,7 @@ void array_check(uint8_t data){
 			fwdRevPressTime = 0;
 			fwdRevPressed = 0;
 			fwdRevState ^= 1;
+			disp_setMCMBFwdRev(!fwdRevState);
 		}
 	} else {
 		fwdRevPressTime = 0;
@@ -1944,25 +1945,25 @@ static void steeringButtonCheck(uint8_t *state){
 	static uint8_t vfm_down_pressed = 0;
 	static long vfm_down_press_time = 0;
 	static long last_vfm_change_time = 0;
-	if(!(state[0]&DPAD_DOWN)){
-		if(motor_press_time == 0){
-			motor_press_time = xTaskGetTickCount();
-		} else if((motor_press_time + 1000 < xTaskGetTickCount()) && motor_pressed == 0){
-//			if(ignition_state != (uint8_t) 1){
-//				motor_pressed = 0;
-//				motor_press_time = 0;
-//				return;
-//			}
-			motor_pressed = 0;
-			motor_press_time = 0;
-			motor_state ^= 1;
-			motorState = motor_state;
-		}
-
-	} else {
-		motor_press_time = 0;
-		motor_pressed = 0;
-	}
+//	if(!(state[0]&DPAD_DOWN)){
+//		if(motor_press_time == 0){
+//			motor_press_time = xTaskGetTickCount();
+//		} else if((motor_press_time + 1000 < xTaskGetTickCount()) && motor_pressed == 0){
+////			if(ignition_state != (uint8_t) 1){
+////				motor_pressed = 0;
+////				motor_press_time = 0;
+////				return;
+////			}
+//			motor_pressed = 0;
+//			motor_press_time = 0;
+//			motor_state ^= 1;
+//			motorState = motor_state;
+//		}
+//
+//	} else {
+//		motor_press_time = 0;
+//		motor_pressed = 0;
+//	}
 	if(!(state[0]&HORN)){
 	  if(!horn_on){
         uint8_t bufh[2] = {0x04, 0x01};
@@ -1975,36 +1976,36 @@ static void steeringButtonCheck(uint8_t *state){
 	  horn_on = 0;
 	}
 
-	if(!(state[0]&DPAD_LEFT)){
-		if(vfm_up_press_time == 0){
-			vfm_up_press_time = xTaskGetTickCount();
-		} else if ((vfm_up_press_time + 1000 < xTaskGetTickCount()) && vfm_up_pressed == 0){
-			vfm_up_press_time = 0;
-			if(last_vfm_change_time + 500 < xTaskGetTickCount()){
-				vfmUpState ^= 1;
-				last_vfm_change_time = xTaskGetTickCount();
-			}
-		}
-	} else {
-		vfm_up_press_time = 0;
-		vfm_up_pressed = 0;
-	}
-
-	if(!(state[0]&DPAD_RIGHT)){
-		if(vfm_down_press_time == 0){
-			vfm_down_press_time = xTaskGetTickCount();
-		} else if ((vfm_down_press_time + 1000 < xTaskGetTickCount()) && vfm_down_pressed == 0){
-			vfm_down_press_time = 0;
-			if(last_vfm_change_time + 500 < xTaskGetTickCount()){
-				vfmDownState ^= 1;
-				last_vfm_change_time = xTaskGetTickCount();
-			}
-		}
-	} else {
-		vfm_down_press_time = 0;
-		vfm_down_pressed = 0;
-	}
-	//disp_updateNavState(!(state[0]&DPAD_UP), !(state[0]&DPAD_DOWN), !(state[0]&DPAD_LEFT), !(state[0]&DPAD_RIGHT), !(state[1]), state[2]);
+//	if(!(state[0]&DPAD_LEFT)){
+//		if(vfm_up_press_time == 0){
+//			vfm_up_press_time = xTaskGetTickCount();
+//		} else if ((vfm_up_press_time + 1000 < xTaskGetTickCount()) && vfm_up_pressed == 0){
+//			vfm_up_press_time = 0;
+//			if(last_vfm_change_time + 500 < xTaskGetTickCount()){
+//				vfmUpState ^= 1;
+//				last_vfm_change_time = xTaskGetTickCount();
+//			}
+//		}
+//	} else {
+//		vfm_up_press_time = 0;
+//		vfm_up_pressed = 0;
+//	}
+//
+//	if(!(state[0]&DPAD_RIGHT)){
+//		if(vfm_down_press_time == 0){
+//			vfm_down_press_time = xTaskGetTickCount();
+//		} else if ((vfm_down_press_time + 1000 < xTaskGetTickCount()) && vfm_down_pressed == 0){
+//			vfm_down_press_time = 0;
+//			if(last_vfm_change_time + 500 < xTaskGetTickCount()){
+//				vfmDownState ^= 1;
+//				last_vfm_change_time = xTaskGetTickCount();
+//			}
+//		}
+//	} else {
+//		vfm_down_press_time = 0;
+//		vfm_down_pressed = 0;
+//	}
+	disp_updateNavState(!(state[0]&DPAD_UP), !(state[0]&DPAD_DOWN), !(state[0]&DPAD_RIGHT), !(state[0]&DPAD_LEFT), !(state[1]), state[2]);
 
 }
 static void steeringWheelTask(const void *pv){

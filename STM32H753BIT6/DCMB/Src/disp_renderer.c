@@ -143,6 +143,7 @@ static lv_style_t motLcdStl;
 static lv_style_t motMtaStl;
 static lv_style_t motAccArcStl;
 static lv_style_t motAccTxtStl;
+static lv_style_t motLedStl;
 
 static void initStyles(){
 	// Screen Background
@@ -151,8 +152,9 @@ static void initStyles(){
 	screenStl.text.color = lv_color_hex3(0x0F0);
 	screenStl.text.font = &Hack_8_2FA1F;
 	// Indicator Bar Style
-	lv_style_copy(&barStl, &lv_style_transp_tight);
+	lv_style_copy(&barStl, &lv_style_plain);
 	barStl.body.main_color = lv_color_hex3(0xaaa);
+	barStl.body.opa = 255;
 	// Big Number
 	lv_style_copy(&bigNumStl, &lv_style_transp_tight);
 	bigNumStl.body.main_color = lv_color_hex3(0x000);
@@ -186,34 +188,44 @@ static void initStyles(){
 	mainVfmStl.text.font = &DISP_Ds_24_7F;
 	mainVfmStl.text.color = lv_color_hex3(0xCCC);
 	// Mot On Box Style
-	lv_style_copy(&motOnStl, &bigNumStl);
+	lv_style_copy(&motOnStl, &lv_style_plain);
 	motOnStl.text.font = &Hack_16_2FA1F;
 	motOnStl.text.color = lv_color_hex3(0xFFF);
 	motOnStl.body.border.width = 2;
 	motOnStl.body.border.color = lv_color_hex3(0xFFF);
+	motOnStl.body.opa = 255;
+	motOnStl.body.border.opa = 255;
 	motOnStl.body.main_color = lv_color_hex3(0x000);
+	motOnStl.body.grad_color = lv_color_hex3(0x000);
 	motOnStl.body.padding.inner = 7;
 
 	// motVfmStl
 	lv_style_copy(&motVfmStl, &bigNumStl);
 	motVfmStl.text.font = &DISP_Ds_55_7F;
 	motVfmStl.text.color = lv_color_hex3(0xCCC);
+	motLcdStl.text.letter_space = 1;
 	// motLcdStl
 	lv_style_copy(&motLcdStl, &bigNumStl);
 	motLcdStl.text.font = &DISP_Thumb_8_7F;
 	motLcdStl.text.color = lv_color_hex3(0xFFF);
+	motLcdStl.text.line_space = 0;
 	// motMtaStl
 	lv_style_copy(&motMtaStl, &bigNumStl);
 	motMtaStl.text.font = &Hack_16_2FA1F;
 	motMtaStl.text.color = lv_color_hex3(0xFFF);
 	// motAccArcStl
-	lv_style_copy(&motAccArcStl, &lv_style_transp_tight);
+	lv_style_copy(&motAccArcStl, &lv_style_plain);
 	motAccArcStl.line.color = lv_color_hex3(0xFFF);
 	motAccArcStl.line.width = 2;
+	motAccArcStl.line.opa = 255;
+	motOnStl.body.opa = 255;
 	// motAccTxtStl
 	lv_style_copy(&motAccTxtStl, &bigNumStl);
 	motAccTxtStl.text.font = &Hack_12_2FA1F;
 	motAccTxtStl.text.color = lv_color_hex3(0xFFF);
+	// motLedStl
+	lv_style_copy(&motLedStl, &barStl);
+	motLedStl.body.radius = LV_RADIUS_CIRCLE;
 }
 
 // #######  ########        ## ########  ######  ########  ######
@@ -235,6 +247,7 @@ static lv_obj_t* accPositionObj = NULL;
 static lv_obj_t* gearTxtLabel = NULL;
 static lv_obj_t* mainVfmLabel = NULL;
 static lv_obj_t* motOnLabel = NULL;
+static lv_obj_t* motOnLabelText = NULL;
 static lv_obj_t* leftArrowImg = NULL;
 static lv_obj_t* rightArrowImg = NULL;
 static lv_obj_t* stopSignImg = NULL;
@@ -267,39 +280,39 @@ static void createObjects(){
 	lv_img_set_src(backgroundImg, &DISP_main_bg);
 	lv_obj_set_pos(backgroundImg, 0, 0);
 
-	bigSpeedLabel = lv_label_create(lv_scr_act(), NULL);
+	bigSpeedLabel = lv_label_create(backgroundImg, NULL);
 	lv_label_set_text(bigSpeedLabel, "  0");
 	lv_label_set_style(bigSpeedLabel, LV_LABEL_STYLE_MAIN, &bigNumStl);
 	lv_label_set_align(bigSpeedLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(bigSpeedLabel, -4, 6);
 
-	bigUnitLabel = lv_label_create(lv_scr_act(), NULL);
+	bigUnitLabel = lv_label_create(backgroundImg, NULL);
 	lv_label_set_text(bigUnitLabel, "kmph");
 	lv_label_set_style(bigUnitLabel, LV_LABEL_STYLE_MAIN, &bigUnitStl);
 	lv_label_set_align(bigUnitLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(bigUnitLabel, 54, 22);
 
-	targetSpeedLabel = lv_label_create(lv_scr_act(), NULL);
+	targetSpeedLabel = lv_label_create(backgroundImg, NULL);
 	lv_label_set_text(targetSpeedLabel, "000");
 	lv_label_set_style(targetSpeedLabel, LV_LABEL_STYLE_MAIN, &targetSpeedStl);
 	lv_label_set_align(targetSpeedLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(targetSpeedLabel, 73, -3);
 
-	battPwrLabel = lv_label_create(lv_scr_act(), NULL);
-	lv_label_set_text(battPwrLabel, "● 0.00#999999 V, +# 0.00#999999 A, -#00416#999999 W IN ");
+	battPwrLabel = lv_label_create(backgroundImg, NULL);
+	lv_label_set_text(battPwrLabel, "○ 0.00#999999 V, +# 0.00#999999 A, -#    0#999999 W OUT");
 	lv_label_set_recolor(battPwrLabel, true);
 	lv_label_set_style(battPwrLabel, LV_LABEL_STYLE_MAIN, &pwrTxtStl);
 	lv_label_set_align(battPwrLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(battPwrLabel, 37, 40);
 
-	arrayPwrLabel = lv_label_create(lv_scr_act(), NULL);
+	arrayPwrLabel = lv_label_create(backgroundImg, NULL);
 	lv_label_set_text(arrayPwrLabel, "○ 0.00#999999 V, +# 0.00#999999 A, +#    0#999999 W OUT");
 	lv_label_set_recolor(arrayPwrLabel, true);
 	lv_label_set_style(arrayPwrLabel, LV_LABEL_STYLE_MAIN, &pwrTxtStl);
 	lv_label_set_align(arrayPwrLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(arrayPwrLabel, 37, 51);
 
-	bmsAlertMessageLabel = lv_label_create(lv_scr_act(), NULL);
+	bmsAlertMessageLabel = lv_label_create(backgroundImg, NULL);
 	lv_label_set_text(bmsAlertMessageLabel, BMS_ALERT_MSG_RESET);
 	lv_label_set_style(bmsAlertMessageLabel, LV_LABEL_STYLE_MAIN, &smlTxtStl);
 	lv_label_set_align(bmsAlertMessageLabel, LV_LABEL_ALIGN_LEFT);
@@ -307,133 +320,140 @@ static void createObjects(){
 	lv_obj_set_pos(bmsAlertMessageLabel, 133, 30);
 	lv_obj_set_width(bmsAlertMessageLabel, 122);
 
-	gearTxtLabel = lv_label_create(lv_scr_act(), NULL);
+	gearTxtLabel = lv_label_create(backgroundImg, NULL);
 	lv_label_set_text(gearTxtLabel, "P");
 	lv_label_set_style(gearTxtLabel, LV_LABEL_STYLE_MAIN, &gearTxtStl);
 	lv_label_set_align(gearTxtLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(gearTxtLabel, 132, 0);
 
-	mainVfmLabel = lv_label_create(lv_scr_act(), NULL);
+	mainVfmLabel = lv_label_create(backgroundImg, NULL);
 	lv_label_set_text(mainVfmLabel, "01");
 	lv_label_set_style(mainVfmLabel, LV_LABEL_STYLE_MAIN, &mainVfmStl);
 	lv_label_set_align(mainVfmLabel, LV_LABEL_ALIGN_LEFT);
-	lv_obj_set_pos(mainVfmLabel, 220, 8);
+	lv_obj_set_pos(mainVfmLabel, 220, 9);
 
-	motOnLabel = lv_label_create(lv_scr_act(), NULL);
-	lv_label_set_text(motOnLabel, "Press SEL to\ntoggle motor");
-	lv_label_set_style(motOnLabel, LV_LABEL_STYLE_MAIN, &motOnStl);
-	lv_label_set_align(motOnLabel, LV_LABEL_ALIGN_CENTER);
-	lv_obj_set_pos(motOnLabel, 63, 8);
-	lv_obj_set_width(motOnLabel, 130);
-	lv_obj_set_height(motOnLabel, 48);
-	lv_obj_set_hidden(motOnLabel, 1);
-
-	leftArrowImg = lv_img_create(lv_scr_act(), NULL);
+	leftArrowImg = lv_img_create(backgroundImg, NULL);
 	lv_img_set_src(leftArrowImg, &DISP_left_arrow);
 	lv_obj_set_pos(leftArrowImg, 149, 6);
 	lv_obj_set_hidden(leftArrowImg, 1);
 
-	rightArrowImg = lv_img_create(lv_scr_act(), NULL);
+	rightArrowImg = lv_img_create(backgroundImg, NULL);
 	lv_img_set_src(rightArrowImg, &DISP_right_arrow);
 	lv_obj_set_pos(rightArrowImg, 191, 6);
 	lv_obj_set_hidden(rightArrowImg, 1);
 
-	stopSignImg = lv_img_create(lv_scr_act(), NULL);
+	stopSignImg = lv_img_create(backgroundImg, NULL);
 	lv_img_set_src(stopSignImg, &DISP_stop_sign);
 	lv_obj_set_pos(stopSignImg, 111, 13);
 	lv_obj_set_hidden(stopSignImg, 1);
 
-	triangleSignImg = lv_img_create(lv_scr_act(), NULL);
+	triangleSignImg = lv_img_create(backgroundImg, NULL);
 	lv_img_set_src(triangleSignImg, &DISP_triangle_sign);
 	lv_obj_set_pos(triangleSignImg, 171, 6);
 	lv_obj_set_hidden(triangleSignImg, 1);
 
-	accPositionObj = lv_obj_create(lv_scr_act(), NULL);
+	accPositionObj = lv_obj_create(backgroundImg, NULL);
 	lv_obj_set_style(accPositionObj, &barStl);
 	lv_obj_set_pos(accPositionObj, 56, 18);
 	lv_obj_set_width(accPositionObj, 0);
 	lv_obj_set_height(accPositionObj, 2);
 
+	motOnLabel = lv_obj_create(backgroundImg, NULL);
+	lv_obj_set_style(motOnLabel, &motOnStl);
+	lv_obj_set_pos(motOnLabel, 63, 8);
+	lv_obj_set_width(motOnLabel, 130);
+	lv_obj_set_height(motOnLabel, 48);
+	lv_obj_set_hidden(motOnLabel, 1);
+
+	motOnLabelText = lv_label_create(motOnLabel, NULL);
+	lv_label_set_text(motOnLabelText, "Press SEL to\ntoggle motor");
+	lv_label_set_style(motOnLabelText, LV_LABEL_STYLE_MAIN, &motOnStl);
+	lv_obj_set_style(motOnLabelText, &motOnStl);
+	lv_label_set_align(motOnLabelText, LV_LABEL_ALIGN_CENTER);
+	lv_obj_set_pos(motOnLabelText, 5, 2);
+	lv_obj_set_width(motOnLabelText, 130);
+	lv_obj_set_height(motOnLabelText, 48);
+
 	// Motor Screen
 	motBgImg = lv_img_create(lv_scr_act(), NULL);
-	lv_img_set_src(backgroundImg, &DISP_main_bg);
-	lv_obj_set_pos(backgroundImg, 0, 0);
+	lv_img_set_src(motBgImg, &DISP_mot_bg);
+	lv_obj_set_pos(motBgImg, 0, 0);
 
-	motVfmLabel = lv_label_create(lv_scr_act(), NULL);
+	motVfmLabel = lv_label_create(motBgImg, NULL);
 	lv_label_set_text(motVfmLabel, "01");
 	lv_label_set_style(motVfmLabel, LV_LABEL_STYLE_MAIN, &motVfmStl);
 	lv_label_set_align(motVfmLabel, LV_LABEL_ALIGN_LEFT);
-	lv_obj_set_pos(motVfmLabel, -3, 8);
+	lv_obj_set_pos(motVfmLabel, -3, 10);
 
-	motLcdLabel = lv_label_create(lv_scr_act(), NULL);
+	motLcdLabel = lv_label_create(motBgImg, NULL);
 	lv_label_set_text(motLcdLabel, "Lorem Ipsum Dolor Lo\nrem Ipsum Dolor Lore\nm Ipsum Dolor Lorem \nIpsum Dolor Lorem Ip");
 	lv_label_set_style(motLcdLabel, LV_LABEL_STYLE_MAIN, &motLcdStl);
 	lv_label_set_align(motLcdLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(motLcdLabel, 74, 19);
 
-	motMtaLabel = lv_label_create(lv_scr_act(), NULL);
-	lv_label_set_text(motMtaLabel, "00/16");
+	motMtaLabel = lv_label_create(motBgImg, NULL);
+	lv_label_set_text(motMtaLabel, "00/15");
 	lv_label_set_style(motMtaLabel, LV_LABEL_STYLE_MAIN, &motMtaStl);
 	lv_label_set_align(motMtaLabel, LV_LABEL_ALIGN_LEFT);
-	lv_obj_set_pos(motMtaLabel, 102, 48);
+	lv_obj_set_pos(motMtaLabel, 101, 48);
 
-	motAccLabel = lv_label_create(lv_scr_act(), NULL);
+	motAccLabel = lv_label_create(motBgImg, NULL);
 	lv_label_set_text(motAccLabel, "000");
 	lv_label_set_style(motAccLabel, LV_LABEL_STYLE_MAIN, &motAccTxtStl);
 	lv_label_set_align(motAccLabel, LV_LABEL_ALIGN_LEFT);
-	lv_obj_set_pos(motAccLabel, 231, 7);
+	lv_obj_set_pos(motAccLabel, 232, 6);
 
-	motRegenLabel = lv_label_create(lv_scr_act(), NULL);
+	motRegenLabel = lv_label_create(motBgImg, NULL);
 	lv_label_set_text(motRegenLabel, "000");
 	lv_label_set_style(motRegenLabel, LV_LABEL_STYLE_MAIN, &motAccTxtStl);
 	lv_label_set_align(motRegenLabel, LV_LABEL_ALIGN_LEFT);
-	lv_obj_set_pos(motRegenLabel, 231, 40);
+	lv_obj_set_pos(motRegenLabel, 232, 39);
 
-	motFwdImg = lv_img_create(lv_scr_act(), NULL);
+	motFwdImg = lv_img_create(motBgImg, NULL);
 	lv_img_set_src(motFwdImg, &DISP_Mot_Fwd_img);
-	lv_obj_set_pos(motFwdImg, 149, 6);
+	lv_obj_set_pos(motFwdImg, 167, 18);
 	lv_obj_set_hidden(motFwdImg, 1);
 
-	motRevImg = lv_img_create(lv_scr_act(), NULL);
+	motRevImg = lv_img_create(motBgImg, NULL);
 	lv_img_set_src(motRevImg, &DISP_Mot_Rev_img);
-	lv_obj_set_pos(motRevImg, 149, 6);
+	lv_obj_set_pos(motRevImg, 192, 18);
 	lv_obj_set_hidden(motRevImg, 1);
 
-	motPwrImg = lv_img_create(lv_scr_act(), NULL);
+	motPwrImg = lv_img_create(motBgImg, NULL);
 	lv_img_set_src(motPwrImg, &DISP_Mot_Pwr_img);
-	lv_obj_set_pos(motPwrImg, 149, 6);
+	lv_obj_set_pos(motPwrImg, 167, 34);
 	lv_obj_set_hidden(motPwrImg, 1);
 
-	motEcoImg = lv_img_create(lv_scr_act(), NULL);
+	motEcoImg = lv_img_create(motBgImg, NULL);
 	lv_img_set_src(motEcoImg, &DISP_Mot_Eco_img);
-	lv_obj_set_pos(motEcoImg, 149, 6);
+	lv_obj_set_pos(motEcoImg, 192, 34);
 	lv_obj_set_hidden(motEcoImg, 1);
 
-	motOnImg = lv_img_create(lv_scr_act(), NULL);
+	motOnImg = lv_img_create(motBgImg, NULL);
 	lv_img_set_src(motOnImg, &DISP_Mot_On_img);
-	lv_obj_set_pos(motOnImg, 149, 6);
+	lv_obj_set_pos(motOnImg, 167, 50);
 	lv_obj_set_hidden(motOnImg, 1);
 
-	motOffImg = lv_img_create(lv_scr_act(), NULL);
+	motOffImg = lv_img_create(motBgImg, NULL);
 	lv_img_set_src(motOffImg, &DISP_Mot_Off_img);
-	lv_obj_set_pos(motOffImg, 149, 6);
+	lv_obj_set_pos(motOffImg, 192, 50);
 	lv_obj_set_hidden(motOffImg, 1);
 
-	motAccArc = lv_arc_create(lv_scr_act(), NULL);
+	motAccArc = lv_arc_create(motBgImg, NULL);
 	lv_arc_set_style(motAccArc, LV_ARC_STYLE_MAIN, &motAccArcStl);
 	lv_arc_set_angles(motAccArc, 315, 315);
 	lv_obj_set_size(motAccArc, 28, 28);
 	lv_obj_set_pos(motAccArc, 228, 0);
 
-	motRegenArc = lv_arc_create(lv_scr_act(), NULL);
+	motRegenArc = lv_arc_create(motBgImg, NULL);
 	lv_arc_set_style(motRegenArc, LV_ARC_STYLE_MAIN, &motAccArcStl);
-	lv_arc_set_angles(motRegenArc, 315, 315);
 	lv_obj_set_size(motRegenArc, 28, 28);
 	lv_obj_set_pos(motRegenArc, 228, 33);
+	lv_arc_set_angles(motRegenArc, 315, 315);
 
-	motLedCirc = lv_obj_create(lv_scr_act(), NULL);
-	lv_arc_set_style(motLedCirc, LV_ARC_STYLE_MAIN, &barStl);
-	lv_arc_set_angles(motRegenArc, 0, 360);
+	motLedCirc = lv_obj_create(motBgImg, NULL);
+	lv_arc_set_style(motLedCirc, LV_ARC_STYLE_MAIN, &motLedStl);
+	lv_arc_set_angles(motLedCirc, 0, 360);
 	lv_obj_set_pos(motLedCirc, 192, 2);
 	lv_obj_set_size(motLedCirc, 12, 12);
 }
@@ -448,37 +468,43 @@ static void createObjects(){
 
 static void showMainPage(uint8_t en){
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
-	const size_t len = sizeof(mainPageObjs) / sizeof(lv_obj_t*);
-	for(size_t i = 0; i < len; i++){
-		if(*mainPageObjs[i]) lv_obj_set_hidden(*mainPageObjs[i], !en);
+//	const size_t len = sizeof(mainPageObjs) / sizeof(lv_obj_t*);
+//	for(size_t i = 0; i < len; i++){
+//		if(*mainPageObjs[i]) lv_obj_set_hidden(*mainPageObjs[i], !en);
+//	}
+//	for(size_t i = 0; i < 11; i++){
+//		if(mainPageLedBar[i]) lv_obj_set_hidden(mainPageLedBar[i], !en);
+//	}
+	if(en){
+		lv_obj_set_hidden(leftArrowImg, !state.leftOn);
+		lv_obj_set_hidden(rightArrowImg, !state.rightOn);
+		lv_obj_set_hidden(stopSignImg, !state.stopOn);
+		lv_obj_set_hidden(triangleSignImg, !state.hazardOn);
+		lv_obj_set_hidden(motOnLabel,!state.motOnWindow);
 	}
-	for(size_t i = 0; i < 11; i++){
-		if(mainPageLedBar[i]) lv_obj_set_hidden(mainPageLedBar[i], !en);
-	}
-	lv_obj_set_hidden(leftArrowImg, !state.leftOn);
-	lv_obj_set_hidden(rightArrowImg, !state.rightOn);
-	lv_obj_set_hidden(stopSignImg, !state.stopOn);
-	lv_obj_set_hidden(triangleSignImg, !state.hazardOn);
+	lv_obj_set_hidden(backgroundImg,!en);
 	xSemaphoreGive(dispMtx);
 }
 
 static void showMotPage(uint8_t en){
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
-	const size_t len = sizeof(motPageObjs) / sizeof(lv_obj_t*);
-	for(size_t i = 0; i < len; i++){
-		if(*motPageObjs[i]) lv_obj_set_hidden(*motPageObjs[i], !en);
+//	const size_t len = sizeof(motPageObjs) / sizeof(lv_obj_t*);
+//	for(size_t i = 0; i < len; i++){
+//		if(*motPageObjs[i]) lv_obj_set_hidden(*motPageObjs[i], !en);
+//	}
+//	for(size_t i = 0; i < 11; i++){
+//		if(motPageLedBar[i]) lv_obj_set_hidden(motPageLedBar[i], !en);
+//	}
+	if(en){
+		lv_obj_set_hidden(motFwdImg, !state.fwd);
+		lv_obj_set_hidden(motRevImg, state.fwd);
+		lv_obj_set_hidden(motPwrImg, state.eco);
+		lv_obj_set_hidden(motEcoImg, !state.eco);
+		lv_obj_set_hidden(motOnImg, !state.motOn);
+		lv_obj_set_hidden(motOffImg, state.motOn);
+		lv_obj_set_hidden(motLedCirc, !state.motLedOn);
 	}
-	for(size_t i = 0; i < 11; i++){
-		if(motPageLedBar[i]) lv_obj_set_hidden(motPageLedBar[i], !en);
-
-	}
-	lv_obj_set_hidden(motFwdImg, !state.fwd);
-	lv_obj_set_hidden(motRevImg, state.fwd);
-	lv_obj_set_hidden(motPwrImg, state.eco);
-	lv_obj_set_hidden(motEcoImg, !state.eco);
-	lv_obj_set_hidden(motOnImg, !state.motOn);
-	lv_obj_set_hidden(motOffImg, state.motOn);
-	lv_obj_set_hidden(motLedCirc, !state.motLedOn);
+	lv_obj_set_hidden(motBgImg,!en);
 	xSemaphoreGive(dispMtx);
 }
 
@@ -650,7 +676,7 @@ static void updateVfm(){
 
 static void updateMta(){
 	uint8_t buf[8];
-	sprintf(buf, "%2d/15", state.mta);
+	sprintf(buf, "%02d/15", state.mta);
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_label_set_text(motMtaLabel, buf);
 	xSemaphoreGive(dispMtx);
@@ -718,8 +744,10 @@ void disp_setMCMBFwdRev(uint8_t fwd){
 	state.fwd = fwd;
 	updateGearLabel();
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
+//	if(state.page == 1){
 	lv_obj_set_hidden(motFwdImg, !fwd);
 	lv_obj_set_hidden(motRevImg, fwd);
+//	}
 	xSemaphoreGive(dispMtx);
 }
 
@@ -913,6 +941,7 @@ void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, 
 			state.motOnWindow = 0;
 			updateMotOnBox();
 			disp_setDCMBMotIgnitionState(state.motOn);
+			if(motOnCallback) motOnCallback(state.motOn);
 			downEdge = upEdge = leftEdge = rightEdge = selEdge = state.encAcc = 0;
 		}else if(downEdge == 1 || upEdge == 1 || leftEdge == 1 || rightEdge == 1 || state.encAcc >= 2 || state.encAcc <= -2){
 			state.motOnWindow = 0;
@@ -975,4 +1004,8 @@ void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, 
 			}
 		}
 	}
+	state.lastUp = up;
+	state.lastDown = down;
+	state.lastLeft = left;
+	state.lastRight = right;
 }
