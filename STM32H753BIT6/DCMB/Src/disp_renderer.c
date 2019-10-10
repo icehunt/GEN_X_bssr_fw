@@ -34,6 +34,12 @@ LV_IMG_DECLARE(DISP_left_arrow);
 LV_IMG_DECLARE(DISP_right_arrow);
 LV_IMG_DECLARE(DISP_stop_sign);
 LV_IMG_DECLARE(DISP_triangle_sign);
+LV_IMG_DECLARE(DISP_Mot_Pwr_img);
+LV_IMG_DECLARE(DISP_Mot_Eco_img);
+LV_IMG_DECLARE(DISP_Mot_Fwd_img);
+LV_IMG_DECLARE(DISP_Mot_Rev_img);
+LV_IMG_DECLARE(DISP_Mot_On_img);
+LV_IMG_DECLARE(DISP_Mot_Off_img);
 extern const uint8_t kaboom[8192];
 
 //########  ######## ########
@@ -96,6 +102,12 @@ static struct state{
 	uint8_t acc;
 	uint8_t regen;
 	uint8_t fwd :1;
+	uint8_t leftOn :1;
+	uint8_t rightOn :1;
+	uint8_t stopOn :1;
+	uint8_t hazardOn :1;
+	uint8_t motLedOn :1;
+	uint8_t eco :1;
 }state = {0};
 void(*mtaCallback)(uint8_t mta);
 void(*driverAckCallback)(uint8_t x);
@@ -228,7 +240,7 @@ static lv_obj_t* rightArrowImg = NULL;
 static lv_obj_t* stopSignImg = NULL;
 static lv_obj_t* triangleSignImg = NULL;
 static lv_obj_t* mainPageLedBar[11];
-static lv_obj_t** mainPageObjs[] = {&backgroundImg,&bigSpeedLabel,&bigUnitLabel,&targetSpeedLabel,&battPwrLabel,&arrayPwrLabel,&bmsAlertMessageLabel,&accPositionObj,&gearTxtLabel,&motOnLabel,&leftArrowImg,&rightArrowImg,&stopSignImg,&triangleSignImg};
+static lv_obj_t** mainPageObjs[] = {&backgroundImg,&bigSpeedLabel,&bigUnitLabel,&targetSpeedLabel,&battPwrLabel,&arrayPwrLabel,&bmsAlertMessageLabel,&accPositionObj,&gearTxtLabel,&mainVfmLabel,&motOnLabel,&leftArrowImg,&rightArrowImg,&stopSignImg,&triangleSignImg};
 static lv_obj_t* motBgImg = NULL;
 static lv_obj_t* motVfmLabel = NULL;
 static lv_obj_t* motLcdLabel = NULL;
@@ -243,8 +255,9 @@ static lv_obj_t* motAccArc = NULL;
 static lv_obj_t* motRegenArc = NULL;
 static lv_obj_t* motAccLabel = NULL;
 static lv_obj_t* motRegenLabel = NULL;
+static lv_obj_t* motLedCirc = NULL;
 static lv_obj_t* motPageLedBar[11];
-static lv_obj_t** motPageObjs[] = {&motBgImg,&motVfmLabel,&motLcdLabel,&motMtaLabel,&motFwdImg,&motRevImg,&motPwrImg,&motEcoImg,&motOnImg,&motOffImg,&motAccArc,&motRegenArc,&motAccLabel,&motRegenLabel};
+static lv_obj_t** motPageObjs[] = {&motBgImg,&motVfmLabel,&motLcdLabel,&motMtaLabel,&motFwdImg,&motRevImg,&motPwrImg,&motEcoImg,&motOnImg,&motOffImg,&motAccArc,&motRegenArc,&motAccLabel,&motRegenLabel,&motLedCirc};
 
 static void createObjects(){
 	lv_obj_set_style(lv_scr_act(), &screenStl);
@@ -376,47 +389,53 @@ static void createObjects(){
 	lv_label_set_align(motRegenLabel, LV_LABEL_ALIGN_LEFT);
 	lv_obj_set_pos(motRegenLabel, 231, 40);
 
-//	motFwdImg = lv_img_create(lv_scr_act(), NULL);
-//	lv_img_set_src(motFwdImg, &DISP_left_arrow);
-//	lv_obj_set_pos(motFwdImg, 149, 6);
-//	lv_obj_set_hidden(motFwdImg, 1);
+	motFwdImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(motFwdImg, &DISP_Mot_Fwd_img);
+	lv_obj_set_pos(motFwdImg, 149, 6);
+	lv_obj_set_hidden(motFwdImg, 1);
 
-//	motRevImg = lv_img_create(lv_scr_act(), NULL);
-//	lv_img_set_src(motRevImg, &DISP_left_arrow);
-//	lv_obj_set_pos(motRevImg, 149, 6);
-//	lv_obj_set_hidden(motRevImg, 1);
+	motRevImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(motRevImg, &DISP_Mot_Rev_img);
+	lv_obj_set_pos(motRevImg, 149, 6);
+	lv_obj_set_hidden(motRevImg, 1);
 
-//	motPwrImg = lv_img_create(lv_scr_act(), NULL);
-//	lv_img_set_src(motPwrImg, &DISP_left_arrow);
-//	lv_obj_set_pos(motPwrImg, 149, 6);
-//	lv_obj_set_hidden(motPwrImg, 1);
+	motPwrImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(motPwrImg, &DISP_Mot_Pwr_img);
+	lv_obj_set_pos(motPwrImg, 149, 6);
+	lv_obj_set_hidden(motPwrImg, 1);
 
-//	motEcoImg = lv_img_create(lv_scr_act(), NULL);
-//	lv_img_set_src(motEcoImg, &DISP_left_arrow);
-//	lv_obj_set_pos(motEcoImg, 149, 6);
-//	lv_obj_set_hidden(motEcoImg, 1);
+	motEcoImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(motEcoImg, &DISP_Mot_Eco_img);
+	lv_obj_set_pos(motEcoImg, 149, 6);
+	lv_obj_set_hidden(motEcoImg, 1);
 
-//	motOnImg = lv_img_create(lv_scr_act(), NULL);
-//	lv_img_set_src(motOnImg, &DISP_left_arrow);
-//	lv_obj_set_pos(motOnImg, 149, 6);
-//	lv_obj_set_hidden(motOnImg, 1);
+	motOnImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(motOnImg, &DISP_Mot_On_img);
+	lv_obj_set_pos(motOnImg, 149, 6);
+	lv_obj_set_hidden(motOnImg, 1);
 
-//	motOffImg = lv_img_create(lv_scr_act(), NULL);
-//	lv_img_set_src(motOffImg, &DISP_left_arrow);
-//	lv_obj_set_pos(motOffImg, 149, 6);
-//	lv_obj_set_hidden(motOffImg, 1);
+	motOffImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(motOffImg, &DISP_Mot_Off_img);
+	lv_obj_set_pos(motOffImg, 149, 6);
+	lv_obj_set_hidden(motOffImg, 1);
 
 	motAccArc = lv_arc_create(lv_scr_act(), NULL);
 	lv_arc_set_style(motAccArc, LV_ARC_STYLE_MAIN, &motAccArcStl);
 	lv_arc_set_angles(motAccArc, 315, 315);
 	lv_obj_set_size(motAccArc, 28, 28);
-	lv_obj_set_pos(motOffImg, 228, 0);
+	lv_obj_set_pos(motAccArc, 228, 0);
 
 	motRegenArc = lv_arc_create(lv_scr_act(), NULL);
 	lv_arc_set_style(motRegenArc, LV_ARC_STYLE_MAIN, &motAccArcStl);
 	lv_arc_set_angles(motRegenArc, 315, 315);
 	lv_obj_set_size(motRegenArc, 28, 28);
 	lv_obj_set_pos(motRegenArc, 228, 33);
+
+	motLedCirc = lv_obj_create(lv_scr_act(), NULL);
+	lv_arc_set_style(motLedCirc, LV_ARC_STYLE_MAIN, &barStl);
+	lv_arc_set_angles(motRegenArc, 0, 360);
+	lv_obj_set_pos(motLedCirc, 192, 2);
+	lv_obj_set_size(motLedCirc, 12, 12);
 }
 
 //######## ##     ## ##    ##  ######
@@ -428,23 +447,39 @@ static void createObjects(){
 //##        #######  ##    ##  ######
 
 static void showMainPage(uint8_t en){
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	const size_t len = sizeof(mainPageObjs) / sizeof(lv_obj_t*);
 	for(size_t i = 0; i < len; i++){
-		if(mainPageObjs[i]) lv_obj_set_hidden(*mainPageObjs[i], !en);
+		if(*mainPageObjs[i]) lv_obj_set_hidden(*mainPageObjs[i], !en);
 	}
 	for(size_t i = 0; i < 11; i++){
 		if(mainPageLedBar[i]) lv_obj_set_hidden(mainPageLedBar[i], !en);
 	}
+	lv_obj_set_hidden(leftArrowImg, !state.leftOn);
+	lv_obj_set_hidden(rightArrowImg, !state.rightOn);
+	lv_obj_set_hidden(stopSignImg, !state.stopOn);
+	lv_obj_set_hidden(triangleSignImg, !state.hazardOn);
+	xSemaphoreGive(dispMtx);
 }
 
 static void showMotPage(uint8_t en){
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	const size_t len = sizeof(motPageObjs) / sizeof(lv_obj_t*);
 	for(size_t i = 0; i < len; i++){
-		if(motPageObjs[i]) lv_obj_set_hidden(*motPageObjs[i], !en);
+		if(*motPageObjs[i]) lv_obj_set_hidden(*motPageObjs[i], !en);
 	}
 	for(size_t i = 0; i < 11; i++){
 		if(motPageLedBar[i]) lv_obj_set_hidden(motPageLedBar[i], !en);
+
 	}
+	lv_obj_set_hidden(motFwdImg, !state.fwd);
+	lv_obj_set_hidden(motRevImg, state.fwd);
+	lv_obj_set_hidden(motPwrImg, state.eco);
+	lv_obj_set_hidden(motEcoImg, !state.eco);
+	lv_obj_set_hidden(motOnImg, !state.motOn);
+	lv_obj_set_hidden(motOffImg, state.motOn);
+	lv_obj_set_hidden(motLedCirc, !state.motLedOn);
+	xSemaphoreGive(dispMtx);
 }
 
 static void testTask(void* pv){
@@ -504,6 +539,7 @@ void displayInit(){
 	createObjects();
 	showMotPage(0);
 	state.vfm = 1;
+	state.fwd = 1;
 //	xSemaphoreGive(dispMtx);
 }
 
@@ -671,12 +707,27 @@ void disp_setMCMBSpeedUnit(uint8_t pi){
 void disp_setMCMBDispState(uint32_t x); // no capture
 
 void disp_setMCMBPwrEco(uint8_t pwr){
-
+	state.eco = !pwr;
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_obj_set_hidden(motPwrImg, !pwr);
+	lv_obj_set_hidden(motEcoImg, pwr);
+	xSemaphoreGive(dispMtx);
 }
 
 void disp_setMCMBFwdRev(uint8_t fwd){
 	state.fwd = fwd;
 	updateGearLabel();
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_obj_set_hidden(motFwdImg, !fwd);
+	lv_obj_set_hidden(motRevImg, fwd);
+	xSemaphoreGive(dispMtx);
+}
+
+void disp_setMCMBMotLed(uint8_t on){
+	state.motLedOn = on;
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_obj_set_hidden(motLedCirc, !on);
+	xSemaphoreGive(dispMtx);
 }
 
 void disp_setBBMBBusVoltage(uint32_t mv){ // critical
@@ -740,24 +791,28 @@ void disp_setPPTMBBusCurrent(uint32_t ma){
 }
 
 void disp_setDCMBLeftLightState(uint32_t on){ // critical
+	state.leftOn = on;
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_obj_set_hidden(leftArrowImg, !on);
 	xSemaphoreGive(dispMtx);
 }
 
 void disp_setDCMBRightLightState(uint32_t on){ // critical
+	state.rightOn = on;
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_obj_set_hidden(rightArrowImg, !on);
 	xSemaphoreGive(dispMtx);
 }
 
 void disp_setDCMBStopLightState(uint32_t on){ // critical
+	state.stopOn = on;
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_obj_set_hidden(stopSignImg, !on);
 	xSemaphoreGive(dispMtx);
 }
 
 void disp_setDCMBHazardLightState(uint32_t on){ // critical
+	state.hazardOn = on;
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
 	lv_obj_set_hidden(triangleSignImg, !on);
 	xSemaphoreGive(dispMtx);
