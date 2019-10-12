@@ -1696,20 +1696,20 @@ static void adcTask(const void *pv){
 //	}
   //setADCChannel(6);
   int16_t spi_in[4];
-  uint8_t *buf;
+  uint8_t buf[52];
   int64_t voltage;
   double adc_current = 0;
   uint32_t bat_current;
   uint8_t sending_data[2] = {0,0};
   for(;;){
-	  buf = pvPortMalloc(sizeof(uint8_t)*52);
-	  HAL_ADC_Start(&hadc1);
-	  HAL_ADC_PollForConversion(&hadc1, 100);
-	  bat_current = HAL_ADC_GetValue(&hadc1);
+	  //buf = pvPortMalloc(sizeof(uint8_t)*52);
+	  //HAL_ADC_Start(&hadc1);
+	  //HAL_ADC_PollForConversion(&hadc1, 100);
+	  //bat_current = HAL_ADC_GetValue(&hadc1);
 	  //adc_current = (double) (HAL_ADC_GetValue(&hadc1) -31000);
-	  adc_current = adc_current * 3 * 1000;
-	  bat_current = (uint32_t) adc_current;
-	  HAL_ADC_Stop(&hadc1);
+	  //adc_current = adc_current * 3 * 1000;
+	  //bat_current = (uint32_t) adc_current;
+	  //HAL_ADC_Stop(&hadc1);
     HAL_GPIO_WritePin(GPIOI, GPIO_PIN_0, GPIO_PIN_SET);
     //HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
     //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
@@ -1806,7 +1806,7 @@ static void adcTask(const void *pv){
     buf[50] = 0x00;
     buf[51] = 0x00;
     B_tcpSend(btcp, buf, 52);
-    vPortFree(buf);
+    //vPortFree(buf);
     vTaskDelay(100);
   }
 }

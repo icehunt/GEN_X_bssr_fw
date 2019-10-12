@@ -2126,7 +2126,7 @@ void serialParse(B_tcpPacket_t *pkt){
 		  break;
 	case 0x03:
 		if(pkt->payload[4] == 0x03){
-			disp_setMCMBPulseFreq(pkt->payload[7]);
+			disp_setMCMBPulseFreq(pkt->payload[7]*2);
 		}
 	}
 }

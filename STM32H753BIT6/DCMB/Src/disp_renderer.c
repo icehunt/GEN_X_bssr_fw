@@ -599,6 +599,7 @@ void displayInit(){
 	state.vfm = 1;
 	state.fwd = 1;
 	state.msg = 0;
+	state.pi = 0;
 //	xSemaphoreGive(dispMtx);
 }
 
