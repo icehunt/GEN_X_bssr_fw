@@ -35,7 +35,7 @@ void disp_setDCMBMotIgnitionState(uint32_t on);
 void disp_setDCMBAccPotPosition(uint8_t x);
 void disp_setCHASETargetSpeed(uint32_t kph);
 void disp_setCHASEAlertType(uint32_t type);
-void disp_setCHASETextMessage(uint8_t* pc);
+void disp_setCHASETextMessage(uint8_t* pc, uint8_t len);
 void disp_setCHASERealTime(uint64_t time);
 void disp_attachMtaCallback(void(*cb)(uint8_t mta));
 void disp_attachDriverAckCallback(void(*cb)(uint8_t x));

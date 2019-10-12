@@ -40,6 +40,8 @@ LV_IMG_DECLARE(DISP_Mot_Fwd_img);
 LV_IMG_DECLARE(DISP_Mot_Rev_img);
 LV_IMG_DECLARE(DISP_Mot_On_img);
 LV_IMG_DECLARE(DISP_Mot_Off_img);
+LV_IMG_DECLARE(DISP_Text_bg);
+LV_IMG_DECLARE(DISP_bubble_img);
 extern const uint8_t kaboom[8192];
 
 //########  ######## ########
@@ -56,6 +58,7 @@ static void initStyles();
 static void createObjects();
 static void showMainPage(uint8_t en);
 static void showMotPage(uint8_t en);
+static void showTextPage(uint8_t en);
 static void updateMotSpeed();
 static void updateBattPwr();
 static void updatePptPwr();
@@ -66,6 +69,7 @@ static void updateAcc();
 static void updateRegen();
 static void updateMotLcd();
 static void updateMotOnBox();
+static void notifTmr(TimerHandle_t xTimer);
 
 // ######  ##     ##
 //##    ## ##     ##
@@ -76,6 +80,7 @@ static void updateMotOnBox();
 // ######     ###
 
 static SemaphoreHandle_t dispMtx;
+static TimerHandle_t notifTmrHandle;
 static uint32_t battV = 0;
 static uint32_t battA = 0;
 static uint32_t arrayV = 0;
@@ -108,6 +113,7 @@ static struct state{
 	uint8_t hazardOn :1;
 	uint8_t motLedOn :1;
 	uint8_t eco :1;
+	uint8_t msg :1;
 }state = {0};
 void(*mtaCallback)(uint8_t mta);
 void(*driverAckCallback)(uint8_t x);
@@ -144,6 +150,8 @@ static lv_style_t motMtaStl;
 static lv_style_t motAccArcStl;
 static lv_style_t motAccTxtStl;
 static lv_style_t motLedStl;
+
+static lv_style_t textMsgStl;
 
 static void initStyles(){
 	// Screen Background
@@ -226,6 +234,11 @@ static void initStyles(){
 	// motLedStl
 	lv_style_copy(&motLedStl, &barStl);
 	motLedStl.body.radius = LV_RADIUS_CIRCLE;
+
+	// textMsgStl
+	lv_style_copy(&textMsgStl, &bigNumStl);
+	textMsgStl.text.font = &Hack_12_2FA1F;
+	textMsgStl.text.color = lv_color_hex3(0xFFF);
 }
 
 // #######  ########        ## ########  ######  ########  ######
@@ -254,6 +267,7 @@ static lv_obj_t* stopSignImg = NULL;
 static lv_obj_t* triangleSignImg = NULL;
 static lv_obj_t* mainPageLedBar[11];
 static lv_obj_t** mainPageObjs[] = {&backgroundImg,&bigSpeedLabel,&bigUnitLabel,&targetSpeedLabel,&battPwrLabel,&arrayPwrLabel,&bmsAlertMessageLabel,&accPositionObj,&gearTxtLabel,&mainVfmLabel,&motOnLabel,&leftArrowImg,&rightArrowImg,&stopSignImg,&triangleSignImg};
+
 static lv_obj_t* motBgImg = NULL;
 static lv_obj_t* motVfmLabel = NULL;
 static lv_obj_t* motLcdLabel = NULL;
@@ -271,6 +285,10 @@ static lv_obj_t* motRegenLabel = NULL;
 static lv_obj_t* motLedCirc = NULL;
 static lv_obj_t* motPageLedBar[11];
 static lv_obj_t** motPageObjs[] = {&motBgImg,&motVfmLabel,&motLcdLabel,&motMtaLabel,&motFwdImg,&motRevImg,&motPwrImg,&motEcoImg,&motOnImg,&motOffImg,&motAccArc,&motRegenArc,&motAccLabel,&motRegenLabel,&motLedCirc};
+
+static lv_obj_t* textBgImg = NULL;
+static lv_obj_t* textMsgLabel = NULL;
+static lv_obj_t* textNotifImg = NULL;
 
 static void createObjects(){
 	lv_obj_set_style(lv_scr_act(), &screenStl);
@@ -456,6 +474,23 @@ static void createObjects(){
 	lv_arc_set_angles(motLedCirc, 0, 360);
 	lv_obj_set_pos(motLedCirc, 192, 2);
 	lv_obj_set_size(motLedCirc, 12, 12);
+
+	textBgImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(textBgImg, &DISP_Text_bg);
+	lv_obj_set_pos(textBgImg, 0, 0);
+	lv_obj_set_hidden(textBgImg, 1);
+
+	textMsgLabel = lv_label_create(textBgImg, NULL);
+	lv_label_set_text(textMsgLabel, "000");
+	lv_label_set_style(textMsgLabel, LV_LABEL_STYLE_MAIN, &textMsgStl);
+	lv_label_set_align(textMsgLabel, LV_LABEL_ALIGN_LEFT);
+	lv_obj_set_pos(textMsgLabel, 0, -2);
+	lv_obj_set_size(textMsgLabel, 256, 66);
+
+	textNotifImg = lv_img_create(lv_scr_act(), NULL);
+	lv_img_set_src(textNotifImg, &DISP_bubble_img);
+	lv_obj_set_pos(textNotifImg, -1, -1);
+	lv_obj_set_hidden(textNotifImg, 1);
 }
 
 //######## ##     ## ##    ##  ######
@@ -468,13 +503,6 @@ static void createObjects(){
 
 static void showMainPage(uint8_t en){
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
-//	const size_t len = sizeof(mainPageObjs) / sizeof(lv_obj_t*);
-//	for(size_t i = 0; i < len; i++){
-//		if(*mainPageObjs[i]) lv_obj_set_hidden(*mainPageObjs[i], !en);
-//	}
-//	for(size_t i = 0; i < 11; i++){
-//		if(mainPageLedBar[i]) lv_obj_set_hidden(mainPageLedBar[i], !en);
-//	}
 	if(en){
 		lv_obj_set_hidden(leftArrowImg, !state.leftOn);
 		lv_obj_set_hidden(rightArrowImg, !state.rightOn);
@@ -488,13 +516,6 @@ static void showMainPage(uint8_t en){
 
 static void showMotPage(uint8_t en){
 	xSemaphoreTake(dispMtx, portMAX_DELAY);
-//	const size_t len = sizeof(motPageObjs) / sizeof(lv_obj_t*);
-//	for(size_t i = 0; i < len; i++){
-//		if(*motPageObjs[i]) lv_obj_set_hidden(*motPageObjs[i], !en);
-//	}
-//	for(size_t i = 0; i < 11; i++){
-//		if(motPageLedBar[i]) lv_obj_set_hidden(motPageLedBar[i], !en);
-//	}
 	if(en){
 		lv_obj_set_hidden(motFwdImg, !state.fwd);
 		lv_obj_set_hidden(motRevImg, state.fwd);
@@ -505,6 +526,16 @@ static void showMotPage(uint8_t en){
 		lv_obj_set_hidden(motLedCirc, !state.motLedOn);
 	}
 	lv_obj_set_hidden(motBgImg,!en);
+	xSemaphoreGive(dispMtx);
+}
+
+static void showTextPage(uint8_t en){
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_obj_set_hidden(textBgImg, !en);
+	if(en){
+		lv_obj_set_hidden(textNotifImg, 1);
+		state.msg = 0;
+	}
 	xSemaphoreGive(dispMtx);
 }
 
@@ -553,6 +584,7 @@ void displayInit(){
 	lv_init();
 	initStyles();
 	xTimerStart(xTimerCreate("", 1, pdTRUE, NULL, lvglTick),0);
+	notifTmrHandle = xTimerCreate("", 500, pdTRUE, NULL, notifTmr);
 	lv_disp_buf_t* disp_buf = pvPortMalloc(sizeof(lv_disp_buf_t));
 	lv_color_t* buf = pvPortMalloc((LV_HOR_RES_MAX * LV_VER_RES_MAX) * sizeof(lv_color_t));
 	lv_disp_buf_init(disp_buf, buf, NULL, LV_HOR_RES_MAX * LV_VER_RES_MAX);
@@ -566,6 +598,7 @@ void displayInit(){
 	showMotPage(0);
 	state.vfm = 1;
 	state.fwd = 1;
+	state.msg = 0;
 //	xSemaphoreGive(dispMtx);
 }
 
@@ -593,6 +626,15 @@ void displayTmr(TimerHandle_t xTimer){
 			lv_task_handler();
 			xSemaphoreGive(dispMtx);
 		}
+	}
+}
+
+static void notifTmr(TimerHandle_t xTimer){
+	if(state.msg){
+		lv_obj_set_hidden(textNotifImg, !lv_obj_get_hidden(textNotifImg));
+	}else{
+		lv_obj_set_hidden(textNotifImg, 1);
+		xTimerStop(notifTmrHandle, 0);
 	}
 }
 
@@ -890,7 +932,23 @@ void disp_setCHASETargetSpeed(uint32_t kph){
 }
 
 void disp_setCHASEAlertType(uint32_t type);
-void disp_setCHASETextMessage(uint8_t* pc);
+
+void disp_setCHASETextMessage(uint8_t* pc, uint8_t len){
+	if(len > 176) len = 176;
+	pc[len-1] = '\0';
+	xSemaphoreTake(dispMtx, portMAX_DELAY);
+	lv_label_set_text(textMsgLabel, pc);
+	state.msg = 1;
+	lv_obj_set_hidden(textNotifImg, 0);
+	if(len >= 7){
+		if(pc[0]=='#'&&pc[1]=='C'&&pc[2]=='S'){
+			lv_label_set_text(targetSpeedLabel, pc+3);
+		}
+	}
+	xSemaphoreGive(dispMtx);
+	xTimerStart(notifTmr, 0);
+}
+
 void disp_setCHASERealTime(uint64_t time);
 
 void disp_attachMtaCallback(void(*cb)(uint8_t mta)){
@@ -958,18 +1016,30 @@ void disp_updateNavState(uint8_t up, uint8_t down, uint8_t left, uint8_t right, 
 		}
 		// page select
 		if(state.encAcc >= 2){
-			state.encAcc = 0;
-			if(state.page == 0){
-				state.page = 1;
-				showMainPage(0);
-				showMotPage(1);
-			}
-		}else if(state.encAcc <= -2){
+			if(state.page < 2) state.page++;
 			state.encAcc = 0;
 			if(state.page == 1){
-				state.page = 0;
+				showMainPage(0);
+				showMotPage(1);
+				showTextPage(0);
+			}
+			if(state.page == 2){
+				showMainPage(0);
+				showMotPage(0);
+				showTextPage(1);
+			}
+		}else if(state.encAcc <= -2){
+			if(state.page > 0) state.page--;
+			state.encAcc = 0;
+			if(state.page == 0){
 				showMotPage(0);
 				showMainPage(1);
+				showTextPage(0);
+			}
+			if(state.page == 1){
+				showMotPage(1);
+				showMainPage(0);
+				showTextPage(0);
 			}
 		}
 		// mot page logic
