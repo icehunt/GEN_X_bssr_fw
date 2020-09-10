@@ -1,0 +1,58 @@
+#define GPIO_OUT0 2
+#define SPI4_CS0 3
+#define GPIO_OUT1 11
+#define GPIO_OUT2 18
+#define GPIO_OUT3 19
+#define GPIO_OUT4 20
+#define GPIO_OUT5 21
+#define GPIO_OUT6 64
+#define GPIO_EXTI0 65
+#define GPIO_EXTI1 66
+#define GPIO_EXTI2 67
+#define GPIO_EXTI3 68
+#define GPIO_EXTI4 69
+#define GPIO_OUT7 77
+#define GPIO_OUT8 78
+#define GPIO_EXTI11 85
+#define GPIO_EXTI12 86
+#define GPIO_EXTI13 87
+#define GPIO_EXTI15 89
+#define GPIO_EXTI5 95
+#define GPIO_OUT10 102
+#define GPIO_OUT11 105
+#define GPIO_EXTI10 110
+#define GPIO_EXTI6 118
+#define GPIO_EXTI7 119
+#define SPI5_CS0 127
+#define GPIO_OUT12 128
+#define GPIO_OUT13 129
+#define GPIO_OUT14 130
+#define GPIO_OUT15 131
+#define GPIO_OUT16 132
+#define GPIO_EXTI8 135
+#define SPI2_CS0 154
+#define SPI6_CS0 160
+#define GPIO_OUT17 167
+#define GPIO_OUT18 174
+#define GPIO_OUT19 175
+#define GPIO_OUT20 176
+#define GPIO_OUT21 177
+#define SPI1_CS0 179
+#define GPIO_OUT22 186
+#define GPIO_OUT23 187
+#define GPIO_OUT24 188
+#define GPIO_OUT25 189
+#define GPIO_OUT26 190
+#define GPIO_OUT27 191
+#define GPIO_OUT28 200
+#define GPIO_OUT29 205
+#define GPIO_OUT30 208
+
+
+
+
+
+
+
+
+
